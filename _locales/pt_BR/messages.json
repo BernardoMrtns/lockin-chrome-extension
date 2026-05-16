@@ -1,0 +1,119 @@
+{
+  "appName": {
+    "message": "Lock In"
+  },
+  "popupTitle": {
+    "message": "Lock In"
+  },
+  "popupBlockedSitesLabel": {
+    "message": "Sites bloqueados (uma por linha):"
+  },
+  "popupSitesPlaceholder": {
+    "message": "ex: twitter.com"
+  },
+  "popupFocusTimeLabel": {
+    "message": "Tempo de foco (min)"
+  },
+  "popupStartFocus": {
+    "message": "Iniciar foco"
+  },
+  "popupStartFocusAria": {
+    "message": "Iniciar foco"
+  },
+  "popupPauseFocus": {
+    "message": "Pausar"
+  },
+  "popupPauseFocusAria": {
+    "message": "Pausar foco"
+  },
+  "popupResumeFocus": {
+    "message": "Retomar"
+  },
+  "popupResumeFocusAria": {
+    "message": "Retomar foco"
+  },
+  "popupStopFocus": {
+    "message": "Parar"
+  },
+  "popupStopFocusAria": {
+    "message": "Parar foco"
+  },
+  "popupShowSummary": {
+    "message": "Mostrar resumo"
+  },
+  "popupShowSummaryAria": {
+    "message": "Mostrar resumo"
+  },
+  "popupClearCounts": {
+    "message": "Limpar contadores"
+  },
+  "popupClearCountsAria": {
+    "message": "Limpar contadores"
+  },
+  "popupStatusPaused": {
+    "message": "Modo foco pausado"
+  },
+  "popupStatusActive": {
+    "message": "Modo foco ativo"
+  },
+  "popupStatusInactive": {
+    "message": "Modo foco inativo"
+  },
+  "popupLoading": {
+    "message": "Carregando..."
+  },
+  "popupTimerPaused": {
+    "message": "Pausado"
+  },
+  "popupTimerPauseCircle": {
+    "message": "Pausa"
+  },
+  "popupTimerFinished": {
+    "message": "Tempo finalizado"
+  },
+  "popupCountsCleared": {
+    "message": "Contadores limpos."
+  },
+  "blockedPageTitle": {
+    "message": "Bloqueado — Lock In"
+  },
+  "blockedPageHeading": {
+    "message": "Ops — site bloqueado"
+  },
+  "blockedPageDescription": {
+    "message": "Este site está bloqueado porque você está em uma sessão de foco."
+  },
+  "blockedAttemptLabel": {
+    "message": "Tentativa:"
+  },
+  "blockedCloseButton": {
+    "message": "Fechar"
+  },
+  "summaryPageTitle": {
+    "message": "Lock In — Resumo"
+  },
+  "summaryHeading": {
+    "message": "Resumo das Tentativas de Sessão"
+  },
+  "summaryHistoryHeading": {
+    "message": "Histórico de Sessões"
+  },
+  "summaryMetaText": {
+    "message": "Total de tentativas nesta sessão: {0}"
+  },
+  "summaryTotalText": {
+    "message": "Total: {0}"
+  },
+  "summaryUpdatedText": {
+    "message": "Atualizado: {0}"
+  },
+  "summaryNoAttempts": {
+    "message": "Nenhuma tentativa registrada durante a última sessão de foco."
+  },
+  "summaryNoHistory": {
+    "message": "Nenhum histórico de sessão disponível."
+  },
+  "summaryChartEmpty": {
+    "message": "Nenhuma tentativa registrada"
+  }
+}

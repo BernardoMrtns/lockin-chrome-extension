@@ -11,22 +11,22 @@
 </head>
 <body>
   <div class="container">
-    <h1>Lock In</h1>
+    <h1 id="appTitle">Lock In</h1>
 
     <section class="config">
-      <label>Sites bloqueados (uma por linha):</label>
-      <textarea id="sitesInput" placeholder="ex: twitter.com"></textarea>
-      <label>Tempo de foco (min)</label>
+      <label id="blockedSitesLabel"></label>
+      <textarea id="sitesInput" placeholder=""></textarea>
+      <label id="focusTimeLabel"></label>
       <input id="minutesInput" type="number" min="1" value="25" />
       <div class="controls">
-        <button id="startBtn" aria-label="Iniciar foco">Iniciar foco</button>
-        <button id="pauseBtn" aria-label="Pausar foco">Pausar</button>
-        <button id="stopBtn" aria-label="Parar foco">Parar</button>
+        <button id="startBtn" aria-label=""></button>
+        <button id="pauseBtn" aria-label=""></button>
+        <button id="stopBtn" aria-label=""></button>
       </div>
     </section>
 
     <section class="status">
-      <div id="statusText">Carregando...</div>
+      <div id="statusText"></div>
       <div id="timerCircle">
         <svg id="timerSvg" viewBox="0 0 80 80">
           <circle class="circle-bg" cx="40" cy="40" r="32" />
@@ -35,11 +35,11 @@
         </svg>
       </div>
       <div id="timerText"></div>
-      <button id="showSummary" aria-label="Mostrar resumo">Mostrar resumo</button>
-      <button id="clearCounts" aria-label="Limpar contadores">Limpar contadores</button>
+      <button id="showSummary" aria-label=""></button>
+      <button id="clearCounts" aria-label=""></button>
     </section>
   </div>
 
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

@@ -11,6 +11,10 @@ const STORAGE_KEYS = {
 
 function $(id){ return document.getElementById(id); }
 
+function t(key, fallback = '') {
+  return chrome.i18n?.getMessage?.(key) || fallback;
+}
+
 async function getStorage(keys) {
   return new Promise(resolve => chrome.storage.local.get(keys, resolve));
 }
@@ -18,7 +22,48 @@ async function setStorage(obj) {
   return new Promise(resolve => chrome.storage.local.set(obj, resolve));
 }
 
+let timerFrameId = null;
+
+function stopTimerFrame() {
+  if (timerFrameId !== null) {
+    cancelAnimationFrame(timerFrameId);
+    timerFrameId = null;
+  }
+}
+
+function startTimerFrame(st) {
+  stopTimerFrame();
+
+  const isFocus = st?.[STORAGE_KEYS.IS_FOCUS] || false;
+  const isPaused = st?.[STORAGE_KEYS.IS_PAUSED] || false;
+
+  if (!isFocus || isPaused) {
+    return;
+  }
+
+  const frame = () => {
+    const currentState = st;
+
+    if (!currentState?.[STORAGE_KEYS.IS_FOCUS] || currentState?.[STORAGE_KEYS.IS_PAUSED]) {
+      timerFrameId = null;
+      return;
+    }
+
+    updateTimer(currentState[STORAGE_KEYS.END_TS], currentState);
+    timerFrameId = requestAnimationFrame(frame);
+  };
+
+  timerFrameId = requestAnimationFrame(frame);
+}
+
 async function loadUI() {
+  $('statusText').innerText = t('popupLoading', 'Carregando...');
+  document.title = t('popupTitle', 'Lock In');
+  $('appTitle').textContent = t('appName', 'Lock In');
+  $('blockedSitesLabel').textContent = t('popupBlockedSitesLabel', 'Sites bloqueados (uma por linha):');
+  $('sitesInput').placeholder = t('popupSitesPlaceholder', 'ex: twitter.com');
+  $('focusTimeLabel').textContent = t('popupFocusTimeLabel', 'Tempo de foco (min)');
+
   const st = await getStorage([STORAGE_KEYS.SITES, STORAGE_KEYS.IS_FOCUS, STORAGE_KEYS.END_TS, STORAGE_KEYS.COUNTERS, STORAGE_KEYS.LAST_USED_TIME, STORAGE_KEYS.START_TS, STORAGE_KEYS.IS_PAUSED, STORAGE_KEYS.REMAINING_MS]);
   const sites = st[STORAGE_KEYS.SITES] || [];
   $('sitesInput').value = sites.join('\n');
@@ -28,6 +73,16 @@ async function loadUI() {
   $('minutesInput').value = lastUsedTime;
 
   updateStatus(st);
+
+  $('startBtn').textContent = t('popupStartFocus', 'Iniciar foco');
+  $('startBtn').setAttribute('aria-label', t('popupStartFocusAria', 'Iniciar foco'));
+  $('pauseBtn').setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
+  $('stopBtn').textContent = t('popupStopFocus', 'Parar');
+  $('stopBtn').setAttribute('aria-label', t('popupStopFocusAria', 'Parar foco'));
+  $('showSummary').textContent = t('popupShowSummary', 'Mostrar resumo');
+  $('showSummary').setAttribute('aria-label', t('popupShowSummaryAria', 'Mostrar resumo'));
+  $('clearCounts').textContent = t('popupClearCounts', 'Limpar contadores');
+  $('clearCounts').setAttribute('aria-label', t('popupClearCountsAria', 'Limpar contadores'));
 }
 
 function updateStatus(st) {
@@ -36,22 +91,20 @@ function updateStatus(st) {
   const endTs = st?.[STORAGE_KEYS.END_TS] || 0;
   if (isFocus) {
     if (isPaused) {
-      $('statusText').innerText = 'Modo foco pausado';
-      $('timerText').innerText = 'Pausado';
-      updateCircle(0, 1, 'Pausa');
+      $('statusText').innerText = t('popupStatusPaused', 'Modo foco pausado');
+      $('timerText').innerText = t('popupTimerPaused', 'Pausado');
+      updateCircle(0, 1, t('popupTimerPauseCircle', 'Pausa'));
+      stopTimerFrame();
     } else {
-      $('statusText').innerText = 'Modo foco ativo';
+      $('statusText').innerText = t('popupStatusActive', 'Modo foco ativo');
       updateTimer(endTs, st);
-      timerInterval = setInterval(() => updateTimer(endTs, st), 1000);
+      startTimerFrame(st);
     }
   } else {
-    $('statusText').innerText = 'Modo foco inativo';
+    $('statusText').innerText = t('popupStatusInactive', 'Modo foco inativo');
     $('timerText').innerText = '';
     updateCircle(0, 1, '');
-  }
-  if (timerInterval && (isPaused || !isFocus)) {
-    clearInterval(timerInterval);
-    timerInterval = null;
+    stopTimerFrame();
   }
 
   // Update pause button text
@@ -59,27 +112,25 @@ function updateStatus(st) {
   if (isFocus) {
     pauseBtn.disabled = false;
     if (isPaused) {
-      pauseBtn.textContent = 'Retomar';
-      pauseBtn.setAttribute('aria-label', 'Retomar foco');
+      pauseBtn.textContent = t('popupResumeFocus', 'Retomar');
+      pauseBtn.setAttribute('aria-label', t('popupResumeFocusAria', 'Retomar foco'));
     } else {
-      pauseBtn.textContent = 'Pausar';
-      pauseBtn.setAttribute('aria-label', 'Pausar foco');
+      pauseBtn.textContent = t('popupPauseFocus', 'Pausar');
+      pauseBtn.setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
     }
   } else {
     pauseBtn.disabled = true;
-    pauseBtn.textContent = 'Pausar';
-    pauseBtn.setAttribute('aria-label', 'Pausar foco');
+    pauseBtn.textContent = t('popupPauseFocus', 'Pausar');
+    pauseBtn.setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
   }
 }
-let timerInterval = null;
 
 function updateTimer(endTs, st) {
   const msLeft = endTs - Date.now();
   if (msLeft <= 0) {
-    $('timerText').innerText = 'Tempo finalizado';
+    $('timerText').innerText = t('popupTimerFinished', 'Tempo finalizado');
     updateCircle(0, 1, '');
-    clearInterval(timerInterval);
-    timerInterval = null;
+    stopTimerFrame();
     return;
   }
   const m = Math.floor(msLeft/60000);
@@ -136,7 +187,7 @@ $('startBtn').addEventListener('click', async () => {
     await setStorage({ [STORAGE_KEYS.LAST_USED_TIME]: minutes });
 
     await setStorage({ [STORAGE_KEYS.SITES]: sites });
-    chrome.runtime.sendMessage({ action: 'startFocus', minutes }, () => {
+    chrome.runtime.sendMessage({ action: 'startFocus', minutes, blockedSites: sites }, () => {
       loadUI();
       window.close();
     });
@@ -179,7 +230,7 @@ document.getElementById('showSummary').addEventListener('click', () => {
 
 $('clearCounts').addEventListener('click', async () => {
   await setStorage({ [STORAGE_KEYS.COUNTERS]: {} });
-  alert('Contadores limpos.');
+  alert(t('popupCountsCleared', 'Contadores limpos.'));
 });
 
 document.addEventListener('DOMContentLoaded', loadUI);

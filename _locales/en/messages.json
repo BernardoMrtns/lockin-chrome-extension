@@ -1,0 +1,119 @@
+{
+  "appName": {
+    "message": "Lock In"
+  },
+  "popupTitle": {
+    "message": "Lock In"
+  },
+  "popupBlockedSitesLabel": {
+    "message": "Blocked sites (one per line):"
+  },
+  "popupSitesPlaceholder": {
+    "message": "e.g. twitter.com"
+  },
+  "popupFocusTimeLabel": {
+    "message": "Focus time (min)"
+  },
+  "popupStartFocus": {
+    "message": "Start focus"
+  },
+  "popupStartFocusAria": {
+    "message": "Start focus"
+  },
+  "popupPauseFocus": {
+    "message": "Pause"
+  },
+  "popupPauseFocusAria": {
+    "message": "Pause focus"
+  },
+  "popupResumeFocus": {
+    "message": "Resume"
+  },
+  "popupResumeFocusAria": {
+    "message": "Resume focus"
+  },
+  "popupStopFocus": {
+    "message": "Stop"
+  },
+  "popupStopFocusAria": {
+    "message": "Stop focus"
+  },
+  "popupShowSummary": {
+    "message": "Show summary"
+  },
+  "popupShowSummaryAria": {
+    "message": "Show summary"
+  },
+  "popupClearCounts": {
+    "message": "Clear counters"
+  },
+  "popupClearCountsAria": {
+    "message": "Clear counters"
+  },
+  "popupStatusPaused": {
+    "message": "Focus mode paused"
+  },
+  "popupStatusActive": {
+    "message": "Focus mode active"
+  },
+  "popupStatusInactive": {
+    "message": "Focus mode inactive"
+  },
+  "popupLoading": {
+    "message": "Loading..."
+  },
+  "popupTimerPaused": {
+    "message": "Paused"
+  },
+  "popupTimerPauseCircle": {
+    "message": "Pause"
+  },
+  "popupTimerFinished": {
+    "message": "Time is up"
+  },
+  "popupCountsCleared": {
+    "message": "Counters cleared."
+  },
+  "blockedPageTitle": {
+    "message": "Blocked — Lock In"
+  },
+  "blockedPageHeading": {
+    "message": "Oops — site blocked"
+  },
+  "blockedPageDescription": {
+    "message": "This site is blocked because you are in a focus session."
+  },
+  "blockedAttemptLabel": {
+    "message": "Attempt:"
+  },
+  "blockedCloseButton": {
+    "message": "Close"
+  },
+  "summaryPageTitle": {
+    "message": "Lock In — Summary"
+  },
+  "summaryHeading": {
+    "message": "Session Attempts Summary"
+  },
+  "summaryHistoryHeading": {
+    "message": "Session History"
+  },
+  "summaryMetaText": {
+    "message": "Total attempts in this session: {0}"
+  },
+  "summaryTotalText": {
+    "message": "Total: {0}"
+  },
+  "summaryUpdatedText": {
+    "message": "Updated: {0}"
+  },
+  "summaryNoAttempts": {
+    "message": "No attempts recorded during the last focus session."
+  },
+  "summaryNoHistory": {
+    "message": "No session history available."
+  },
+  "summaryChartEmpty": {
+    "message": "No attempts recorded"
+  }
+}

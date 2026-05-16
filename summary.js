@@ -1,16 +1,16 @@
-if (typeof chrome !== 'undefined' && chrome.storage) {
-  console.log('Chrome storage is available');
-} else {
-  console.error('Chrome storage is not available');
-}
+import Chart from 'chart.js/auto';
 
 const STORAGE_KEY = 'attemptCounters';
 const HISTORY_KEY = 'sessionHistory';
+let attemptChart = null;
+
+function t(key, fallback = '') {
+  return chrome.i18n?.getMessage?.(key) || fallback;
+}
 
 async function loadCounters() {
   return new Promise(resolve => {
     chrome.storage.local.get([STORAGE_KEY], (res) => {
-      console.log('Loaded counters:', res[STORAGE_KEY]);
       resolve(res[STORAGE_KEY] || {});
     });
   });
@@ -19,7 +19,6 @@ async function loadCounters() {
 async function loadHistory() {
   return new Promise(resolve => {
     chrome.storage.local.get([HISTORY_KEY], (res) => {
-      console.log('Loaded history:', res[HISTORY_KEY]);
       resolve(res[HISTORY_KEY] || []);
     });
   });
@@ -31,60 +30,115 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function destroyChart() {
+  if (attemptChart) {
+    attemptChart.destroy();
+    attemptChart = null;
+  }
+}
+
 function drawChart(entries) {
-  console.log('Drawing chart with entries:', entries);
   const canvas = document.getElementById('barChart');
-  const ctx = canvas.getContext('2d');
-  const width = canvas.width = Math.max(400, canvas.offsetWidth || 400);
-  const height = canvas.height = Math.max(280, canvas.offsetHeight || 280);
+  const chartWrap = document.getElementById('chartWrap');
+  const chartEmpty = document.getElementById('chartEmpty');
 
-  console.log('Canvas dimensions:', width, height);
-
-  ctx.clearRect(0, 0, width, height);
+  destroyChart();
 
   if (!entries.length) {
-    console.log('No entries to display');
-    ctx.fillStyle = '#888888';
-    ctx.font = '16px Poppins';
-    ctx.textAlign = 'center';
-    ctx.fillText('Nenhuma tentativa registrada', width / 2, height / 2);
+    chartWrap.dataset.empty = 'true';
+    chartEmpty.textContent = t('summaryChartEmpty', 'Nenhuma tentativa registrada');
+    canvas.setAttribute('aria-label', t('summaryChartEmpty', 'Nenhuma tentativa registrada'));
     return;
   }
 
-  const maxCount = Math.max(...entries.map(([, count]) => count));
-  const barWidth = Math.max(20, (width - 60) / entries.length - 10);
-  const startX = 40;
+  chartWrap.dataset.empty = 'false';
+  canvas.removeAttribute('aria-label');
 
-  entries.forEach(([site, count], index) => {
-    const barHeight = (count / maxCount) * (height - 80);
-    const x = startX + index * (barWidth + 10);
-    const y = height - 40 - barHeight;
+  const ctx = canvas.getContext('2d');
+  const labels = entries.map(([site]) => site);
+  const values = entries.map(([, count]) => count);
 
-    // Draw bar
-    const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
-    gradient.addColorStop(0, '#667eea');
-    gradient.addColorStop(1, '#764ba2');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, barWidth, barHeight);
+  attemptChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tentativas',
+        data: values,
+        borderRadius: 12,
+        borderSkipped: false,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
+        backgroundColor: context => {
+          const chart = context.chart;
+          const { ctx: chartCtx, chartArea } = chart;
 
-    // Draw count on top
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px Poppins';
-    ctx.textAlign = 'center';
-    ctx.fillText(count.toString(), x + barWidth / 2, y - 5);
+          if (!chartArea) {
+            return '#667eea';
+          }
 
-    // Draw site name
-    ctx.fillStyle = '#c4c4c4';
-    ctx.font = '11px Poppins';
-    const truncatedSite = site.length > 10 ? site.substring(0, 10) + '...' : site;
-    ctx.fillText(truncatedSite, x + barWidth / 2, height - 20);
+          const gradient = chartCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, '#8fb3ff');
+          gradient.addColorStop(1, '#4f46e5');
+          return gradient;
+        },
+        hoverBackgroundColor: '#a78bfa'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 650,
+        easing: 'easeOutQuart'
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.96)',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: 'rgba(148, 163, 184, 0.22)',
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label: context => `${context.formattedValue} tentativas`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.06)'
+          },
+          ticks: {
+            color: '#cbd5e1',
+            maxRotation: 0,
+            autoSkip: false
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(255, 255, 255, 0.08)'
+          },
+          ticks: {
+            color: '#cbd5e1',
+            precision: 0
+          }
+        }
+      }
+    }
   });
 }
 
 function renderTable(entries) {
   const wrap = document.getElementById('tableWrap');
   if (!entries.length) {
-    wrap.innerHTML = '<div class="empty">Nenhuma tentativa registrada durante a última sessão de foco.</div>';
+    wrap.innerHTML = `<div class="empty">${t('summaryNoAttempts', 'Nenhuma tentativa registrada durante a última sessão de foco.')}</div>`;
     return;
   }
   let html = '<table><thead><tr><th>Site</th><th style="text-align:right">Tentativas</th></tr></thead><tbody>';
@@ -98,7 +152,7 @@ function renderTable(entries) {
 function renderHistory(history) {
   const wrap = document.getElementById('historyWrap');
   if (!history.length) {
-    wrap.innerHTML = '<div class="empty">Nenhum histórico de sessão disponível.</div>';
+    wrap.innerHTML = `<div class="empty">${t('summaryNoHistory', 'Nenhum histórico de sessão disponível.')}</div>`;
     return;
   }
   wrap.innerHTML = history.slice(-10).reverse().map(session => {
@@ -120,19 +174,19 @@ function renderHistory(history) {
 }
 
 async function refreshUI() {
-  console.log('Refreshing UI...');
+  document.title = t('summaryPageTitle', 'Lock In — Resumo');
+  document.getElementById('summaryTitle').textContent = t('summaryHeading', 'Resumo das Tentativas de Sessão');
+  document.getElementById('historyTitle').textContent = t('summaryHistoryHeading', 'Histórico de Sessões');
+
   const counters = await loadCounters();
   const history = await loadHistory();
 
   const entries = Object.entries(counters).sort((a, b) => b[1] - a[1]);
   const total = entries.reduce((sum, [, count]) => sum + count, 0);
 
-  console.log('Counters entries:', entries);
-  console.log('Total attempts:', total);
-
-  document.getElementById('metaText').textContent = `Total de tentativas nesta sessão: ${total}`;
-  document.getElementById('totalText').textContent = `Total: ${total}`;
-  document.getElementById('lastUpdated').textContent = `Atualizado: ${new Date().toLocaleString('pt-BR')}`;
+  document.getElementById('metaText').textContent = t('summaryMetaText', 'Total de tentativas nesta sessão: {0}').replace('{0}', String(total));
+  document.getElementById('totalText').textContent = t('summaryTotalText', 'Total: {0}').replace('{0}', String(total));
+  document.getElementById('lastUpdated').textContent = t('summaryUpdatedText', 'Atualizado: {0}').replace('{0}', new Date().toLocaleString('pt-BR'));
 
   renderTable(entries);
   renderHistory(history);

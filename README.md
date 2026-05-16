@@ -1,57 +1,62 @@
-# 🔒 Lock In — Extensão de Produtividade para o Chrome
+# Lock In
 
-O **Lock In** é uma extensão para o Google Chrome criada para ajudar você a manter o foco.
-Ela bloqueia sites que causam distração durante sessões de estudo ou trabalho, registra suas tentativas de acesso e exibe relatórios no final da sessão.
+Lock In é uma extensão para Google Chrome que ajuda a manter foco durante sessões de estudo ou trabalho. A refatoração atual migrou o bloqueio para `chrome.declarativeNetRequest`, modularizou o service worker, adicionou i18n e empacotamento com Vite + CRXJS.
 
----
+## O que a extensão faz
 
-## ✨ Funcionalidades
+- Bloqueia sites distraidores no nível de rede, antes da página renderizar parcialmente.
+- Inicia, pausa, retoma e encerra sessões de foco com timer persistente.
+- Registra tentativas de acesso a sites bloqueados e mostra badge com o total.
+- Exibe um resumo visual com Chart.js, tabela detalhada e histórico de sessões.
+- Suporta português e inglês via `chrome.i18n`.
 
-* ⏱️ **Sessões de Foco**
-  Defina um tempo de foco (padrão: 25 minutos) para evitar distrações.
+## Estrutura atual
 
-* 🚫 **Bloqueio de Sites**
-  Adicione os sites que você deseja bloquear (ex: YouTube, Instagram, Twitter).
+- `background.js` é apenas o ponto de entrada do service worker.
+- `src/background/index.js` registra listeners e coordena o fluxo principal.
+- `src/core/blocking.js` monta e sincroniza regras dinâmicas do DNR.
+- `src/core/timer.js` gerencia foco, pausa, retomada, contadores e histórico.
+- `src/utils/storage.js` centraliza acesso a `chrome.storage.local`.
+- `popup.js`, `blocked.js` e `summary.js` consomem mensagens e textos via i18n.
 
-* 📊 **Registro de Tentativas**
-  Cada vez que você tenta acessar um site bloqueado, o Lock In contabiliza a tentativa.
+## Build gerado em `dist`
 
-* 🔔 **Notificações e Badge**
-  Você recebe uma notificação quando a sessão começa/termina e vê no ícone da extensão o número de tentativas.
+O build produzido por `npm run build` gera, entre outros, estes artefatos:
 
-* 📑 **Resumo de Acessos (summary.html)**
-  Consulte um relatório de quantas vezes tentou acessar cada site bloqueado durante a sessão.
+- `dist/manifest.json` com `default_locale`, `service-worker-loader.js` e permissões finais.
+- `dist/service-worker-loader.js` e o bundle do worker em `dist/assets/background.js-*.js`.
+- `dist/popup.html` e o bundle correspondente em `dist/assets/popup.html-*.js`.
+- `dist/blocked.html`, `dist/blocked.js`, `dist/summary.html` e `dist/summary.js`.
+- `dist/_locales/pt_BR/messages.json` e `dist/_locales/en/messages.json`.
 
----
+## Como executar
 
-## 🐞 Problemas Conhecidos
+### Desenvolvimento
 
----
+```bash
+npm install
+npm run dev
+```
 
-## 🛠️ Tecnologias Utilizadas
+### Produção
 
-* **Linguagem:** JavaScript (Manifest V3)
-* **APIs:** `chrome.storage.local`, `chrome.tabs`, `chrome.alarms`, `chrome.notifications`
-* **Frontend:** HTML + CSS (popup, página de bloqueio, página de resumo)
-* **Background:** Service Worker (`background.js`)
+```bash
+npm run build
+```
 
----
+Depois, carregue a pasta `dist/` como extensão sem compactação em `chrome://extensions`.
 
-## 🚀 Como Instalar e Usar
+## Tecnologias
 
-1. Clone este repositório:
+- JavaScript ES Modules
+- Manifest V3
+- `chrome.declarativeNetRequest`
+- `chrome.alarms`, `chrome.storage.local`, `chrome.notifications`
+- Vite + `@crxjs/vite-plugin`
+- Chart.js
 
-   ```bash
-   git clone https://github.com/seu-usuario/lock-in-extension.git
-   ```
+## Observações
 
-2. Abra o Chrome e vá em:
-   `chrome://extensions/`
-
-3. Ative o **Modo do Desenvolvedor** e clique em **Carregar sem compactação**.
-
-4. Selecione a pasta do projeto.
-
-5. Inicie uma sessão de foco e adicione os sites que deseja bloquear.
-
----
+- O bloqueio agora acontece antes da navegação completar, reduzindo flicker.
+- O gráfico manual em Canvas foi substituído por Chart.js.
+- A saída de build deve ser tratada como artefato gerado, não como código-fonte.
