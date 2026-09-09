@@ -10,6 +10,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { NOT_SHIPPED, isPayload } from './payload.js';
+
 const root = fileURLToPath(new URL('..', import.meta.url));
 const problems = [];
 const notes = [];
@@ -52,13 +54,26 @@ function walk(dir, out = []) {
 
 const allFiles = walk('');
 
-// tools/ is dev-only and excluded from the zip, so it is parsed but exempt from
-// the rules about what may ship (no remote URLs, no forbidden CSS, size).
-const DEV_ONLY = new Set(['LICENSE', 'package.json', '.gitignore']);
-const isShipped = file =>
-  !file.startsWith('tools/') && !DEV_ONLY.has(file) && !file.endsWith('.md');
+/*
+ * What ships is the zip's own list, not a second guess at it. Everything else
+ * in the repo — tools/, docs/, the store screenshots, the READMEs — is still
+ * parsed below, but is exempt from the rules about what may ship (no remote
+ * URLs, no forbidden CSS, size).
+ */
+const isShipped = isPayload;
 
 const files = allFiles.filter(isShipped);
+
+/*
+ * A file that is neither payload nor declared dev-only is almost always a
+ * runtime file someone forgot to add to the payload list, which produces a zip
+ * that loads in the browser and then fails on a missing import.
+ */
+for (const file of allFiles) {
+  if (!isPayload(file) && !NOT_SHIPPED.some(pattern => pattern.test(file))) {
+    fail(`"${file}" is in neither the payload list nor the excluded list (tools/payload.js)`);
+  }
+}
 const jsFiles = files.filter(file => file.endsWith('.js'));
 const htmlFiles = files.filter(file => file.endsWith('.html'));
 const cssFiles = files.filter(file => file.endsWith('.css'));
@@ -318,6 +333,31 @@ for (const referenced of [
 ]) {
   if (referenced && !files.includes(referenced)) {
     fail(`manifest points at "${referenced}" which does not exist`);
+  }
+}
+
+/*
+ * The store listing links back to the repository, and the privacy policy the
+ * dashboard points at is a file in it. Both are entered once in a web form and
+ * then never looked at again, so a rename here would break them silently.
+ */
+const REPO_URL = 'https://github.com/BernardoMrtns/lockin-chrome-extension';
+
+if (manifest.homepage_url !== REPO_URL) {
+  fail(`manifest homepage_url is "${manifest.homepage_url}", expected ${REPO_URL}`);
+}
+
+for (const document of ['PRIVACY.md', 'docs/store-listing.md']) {
+  if (!allFiles.includes(document)) {
+    fail(`${document} is missing — the store listing links to it`);
+  }
+}
+
+const listing = read('docs/store-listing.md');
+
+for (const required of [`${REPO_URL}/issues`, `${REPO_URL}/blob/main/PRIVACY.md`]) {
+  if (!listing.includes(required)) {
+    fail(`docs/store-listing.md no longer states ${required}`);
   }
 }
 

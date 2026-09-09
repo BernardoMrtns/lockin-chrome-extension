@@ -22,26 +22,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+import { PAYLOAD } from './payload.js';
 
-/** Everything the extension loads at runtime, and nothing else. */
-const PAYLOAD = [
-  'manifest.json',
-  'background.js',
-  'popup.html',
-  'popup.css',
-  'popup.js',
-  'blocked.html',
-  'blocked.css',
-  'blocked.js',
-  'summary.html',
-  'summary.css',
-  'summary.js',
-  'assets',
-  'icons',
-  'src',
-  '_locales'
-];
+const root = fileURLToPath(new URL('..', import.meta.url));
 
 /* ── checks gate the package ── */
 
