@@ -1,44 +1,119 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Lock In</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="assets/theme.css" />
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
-    <h1 id="appTitle">Lock In</h1>
+  <header class="bar">
+    <span class="wordmark">Lock In</span>
+    <div class="langs" id="langs"></div>
+    <span class="bar__state">
+      <span class="dot" id="stateDot" data-state="off"></span>
+      <span id="stateLabel" class="eyebrow"></span>
+    </span>
+  </header>
 
-    <section class="config">
-      <label id="blockedSitesLabel"></label>
-      <textarea id="sitesInput" placeholder=""></textarea>
-      <label id="focusTimeLabel"></label>
-      <input id="minutesInput" type="number" min="1" value="25" />
-      <div class="controls">
-        <button id="startBtn" aria-label=""></button>
-        <button id="pauseBtn" aria-label=""></button>
-        <button id="stopBtn" aria-label=""></button>
+  <hr class="hr" />
+
+  <!-- ══ idle ══ -->
+  <main class="view" id="viewIdle" hidden>
+    <section class="block">
+      <h2 class="eyebrow" data-i18n="popupDurationLabel"></h2>
+      <div class="chips" id="durationChips">
+        <button class="chip" type="button" data-minutes="15">15</button>
+        <button class="chip" type="button" data-minutes="25">25</button>
+        <button class="chip" type="button" data-minutes="45">45</button>
+        <button class="chip" type="button" data-minutes="90">90</button>
+        <label class="chip chip--input">
+          <input
+            id="minutesInput"
+            type="number"
+            min="1"
+            max="1440"
+            step="1"
+            inputmode="numeric"
+            placeholder="--"
+            aria-labelledby="minutesLabel"
+          />
+          <span id="minutesLabel" data-i18n="popupMinutesShort"></span>
+        </label>
       </div>
     </section>
 
-    <section class="status">
-      <div id="statusText"></div>
-      <div id="timerCircle">
-        <svg id="timerSvg" viewBox="0 0 80 80">
-          <circle class="circle-bg" cx="40" cy="40" r="32" />
-          <circle class="circle-fg" cx="40" cy="40" r="32" stroke-dasharray="201" stroke-dashoffset="201" />
-          <text class="circle-text" x="40" y="44" id="circleText"></text>
+    <section class="block">
+      <div class="block__head">
+        <h2 class="eyebrow" data-i18n="popupSitesLabel"></h2>
+        <span class="eyebrow" id="siteCount"></span>
+      </div>
+
+      <form class="add" id="addForm">
+        <input
+          class="field"
+          id="siteInput"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          data-i18n-placeholder="popupSitesPlaceholder"
+          aria-describedby="addHint"
+        />
+        <button class="btn" type="submit" data-i18n="popupAdd"></button>
+      </form>
+      <p class="hint" id="addHint" data-i18n="popupSitesHint"></p>
+
+      <ul class="taglist" id="siteList"></ul>
+      <p class="hint hint--empty" id="siteEmpty" data-i18n="popupSitesEmpty" hidden></p>
+
+      <div class="presets">
+        <span class="eyebrow" data-i18n="popupPresetsLabel"></span>
+        <div class="chips" id="presetChips"></div>
+      </div>
+    </section>
+
+    <button class="btn btn--primary btn--block" id="startBtn" type="button" data-i18n="popupStart"></button>
+  </main>
+
+  <!-- ══ running ══ -->
+  <main class="view" id="viewRunning" hidden>
+    <section class="panel panel--accent hero" id="hero">
+      <p class="eyebrow hero__label" id="heroLabel"></p>
+      <p class="numeral hero__clock" id="clock">--:--</p>
+      <div class="meter" id="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+      <p class="hero__foot" id="heroFoot"></p>
+    </section>
+
+    <div class="row">
+      <button class="btn" id="pauseBtn" type="button"></button>
+      <button class="btn btn--danger" id="stopBtn" type="button" data-i18n="popupStop"></button>
+    </div>
+
+    <section class="block" id="tallyBlock" hidden>
+      <h2 class="eyebrow" data-i18n="popupTallyLabel"></h2>
+      <ul class="tally" id="tallyList"></ul>
+    </section>
+  </main>
+
+  <hr class="hr" />
+
+  <section class="support view" id="supportPanel" hidden></section>
+
+  <footer class="bar bar--foot">
+    <span class="hint" id="todayLine"></span>
+    <div class="bar__links">
+      <button class="btn btn--quiet" id="summaryBtn" type="button" data-i18n="popupSummary"></button>
+      <button class="btn btn--sm btn--donate" id="supportBtn" type="button" aria-expanded="false">
+        <svg class="glyph-cup" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path class="glyph-cup__body" d="M2.9 4.2h8.2l-.9 7.1a1 1 0 0 1-1 .9H4.8a1 1 0 0 1-1-.9z" />
+          <path class="glyph-cup__handle" d="M11.4 5.9h1.3a1.6 1.6 0 0 1 0 3.2h-1" />
         </svg>
-      </div>
-      <div id="timerText"></div>
-      <button id="showSummary" aria-label=""></button>
-      <button id="clearCounts" aria-label=""></button>
-    </section>
-  </div>
+        <span data-i18n="supportButton"></span>
+      </button>
+    </div>
+  </footer>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
 
   <script type="module" src="popup.js"></script>
 </body>

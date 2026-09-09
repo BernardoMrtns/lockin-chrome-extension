@@ -1,73 +1,71 @@
-function normalizeBlockedSites(blockedSites) {
-  return [...new Set((blockedSites || [])
-    .map(site => canonicalizeBlockedSite(site))
-    .filter(Boolean))];
-}
+/**
+ * Hostname matching and tab redirection.
+ *
+ * Blocking is done by redirecting the tab to blocked.html. There is no
+ * declarativeNetRequest here on purpose: DNR cannot tell us *which* rule fired
+ * without the extra `declarativeNetRequestFeedback` permission, and we want to
+ * count attempts per site.
+ */
 
-function canonicalizeBlockedSite(site) {
+/** Turns free-form user input ("https://X.com/home", "X.COM.") into a bare hostname. */
+export function canonicalizeSite(site) {
   const raw = String(site || '').trim().toLowerCase();
 
   if (!raw) {
     return '';
   }
 
-  try {
-    const parsedUrl = raw.includes('://') ? new URL(raw) : new URL(`https://${raw}`);
-    return parsedUrl.hostname.replace(/\.+$/, '');
-  } catch {
-    return raw
-      .replace(/^https?:\/\//, '')
-      .replace(/[/?#].*$/, '')
-      .replace(/\.+$/, '')
-      .trim();
-  }
+  const withoutScheme = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//, '');
+  const hostOnly = withoutScheme.split(/[/?#]/)[0];
+
+  return hostOnly
+    .replace(/^www\./, '')
+    .replace(/:\d+$/, '')
+    .replace(/\.+$/, '')
+    .trim();
 }
 
-function isNavigableHttpUrl(rawUrl) {
-  if (!rawUrl) {
-    return false;
-  }
+export function normalizeSites(sites) {
+  return [...new Set((sites || []).map(canonicalizeSite).filter(Boolean))];
+}
 
+function isHttpUrl(rawUrl) {
   try {
-    const parsedUrl = new URL(rawUrl);
-    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+    const { protocol } = new URL(rawUrl);
+    return protocol === 'http:' || protocol === 'https:';
   } catch {
     return false;
   }
 }
 
-function matchesBlockedSite(rawUrl, blockedSite) {
-  if (!isNavigableHttpUrl(rawUrl) || !blockedSite) {
+/**
+ * A site matches if the hostname equals it or is a subdomain of it.
+ * Bare keywords (no dot) match anywhere in the URL, so "reddit" catches
+ * old.reddit.com and google.com/search?q=reddit alike.
+ */
+function matches(rawUrl, site) {
+  if (!isHttpUrl(rawUrl) || !site) {
     return false;
   }
 
-  try {
-    const parsedUrl = new URL(rawUrl);
-    const hostname = parsedUrl.hostname.toLowerCase();
-    const fullUrl = parsedUrl.href.toLowerCase();
-    const normalizedSite = canonicalizeBlockedSite(blockedSite);
+  const url = new URL(rawUrl);
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
 
-    if (!normalizedSite) {
-      return false;
-    }
-
-    const isDomainLike = normalizedSite.includes('.') || normalizedSite.includes(':');
-
-    if (isDomainLike) {
-      return hostname === normalizedSite || hostname.endsWith(`.${normalizedSite}`);
-    }
-
-    return fullUrl.includes(normalizedSite);
-  } catch {
-    return false;
+  if (!site.includes('.')) {
+    return url.href.toLowerCase().includes(site);
   }
+
+  return hostname === site || hostname.endsWith(`.${site}`);
 }
 
-export function findBlockedMatch(rawUrl, blockedSites) {
-  const normalizedSites = normalizeBlockedSites(blockedSites);
+/** Returns the first blocked site matching the URL, or '' when nothing matches. */
+export function findBlockedMatch(rawUrl, sites) {
+  if (!isHttpUrl(rawUrl)) {
+    return '';
+  }
 
-  for (const site of normalizedSites) {
-    if (matchesBlockedSite(rawUrl, site)) {
+  for (const site of normalizeSites(sites)) {
+    if (matches(rawUrl, site)) {
       return site;
     }
   }
@@ -75,73 +73,62 @@ export function findBlockedMatch(rawUrl, blockedSites) {
   return '';
 }
 
-export function buildBlockedPageUrl(site, tabId) {
-  const blockedSite = String(site || '').trim();
+/**
+ * `counts` is passed through the URL rather than fetched by the blocked page so
+ * the tally is fixed at redirect time. Reloading the page then cannot inflate it.
+ */
+export function buildBlockedPageUrl(site, counts = null) {
   const params = new URLSearchParams();
 
-  if (blockedSite) {
-    params.set('site', blockedSite);
+  if (site) {
+    params.set('site', site);
   }
 
-  if (typeof tabId === 'number') {
-    params.set('tabId', String(tabId));
+  if (counts) {
+    params.set('n', String(counts.sessionCount || 0));
+    params.set('today', String(counts.todayCount || 0));
   }
 
   const query = params.toString();
   return `${chrome.runtime.getURL('blocked.html')}${query ? `?${query}` : ''}`;
 }
 
-export async function redirectBlockedTab(tabId, site) {
+export async function redirectTab(tabId, site) {
   if (typeof tabId !== 'number') {
     return false;
   }
 
-  await chrome.tabs.update(tabId, {
-    url: buildBlockedPageUrl(site, tabId)
-  });
-
-  return true;
+  try {
+    await chrome.tabs.update(tabId, { url: buildBlockedPageUrl(site) });
+    return true;
+  } catch {
+    // Tab closed mid-flight, or is a tab we are not allowed to touch.
+    return false;
+  }
 }
 
-async function enforceBlockedTabs(blockedSites) {
-  const normalizedSites = normalizeBlockedSites(blockedSites);
+/** Sweeps every open tab. Used when a session starts or resumes. */
+export async function findOpenBlockedTabs(sites) {
+  const normalized = normalizeSites(sites);
 
-  if (!normalizedSites.length) {
+  if (!normalized.length) {
     return [];
   }
 
   const tabs = await chrome.tabs.query({});
-  const matches = [];
+  const hits = [];
 
   for (const tab of tabs) {
     if (typeof tab.id !== 'number' || !tab.url) {
       continue;
     }
 
-    const matchedSite = findBlockedMatch(tab.url, normalizedSites);
+    const site = findBlockedMatch(tab.url, normalized);
 
-    if (!matchedSite) {
-      continue;
+    if (site) {
+      hits.push({ tabId: tab.id, site });
     }
-
-    matches.push({ tabId: tab.id, site: matchedSite });
   }
 
-  await Promise.all(matches.map(match => redirectBlockedTab(match.tabId, match.site)));
-  return matches;
-}
-
-export async function syncBlockingRules(blockedSites) {
-  const normalizedSites = normalizeBlockedSites(blockedSites);
-
-  if (!normalizedSites.length) {
-    return [];
-  }
-
-  await enforceBlockedTabs(normalizedSites);
-  return normalizedSites;
-}
-
-export async function clearBlockingRules() {
-  return;
+  return hits;
 }

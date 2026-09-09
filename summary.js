@@ -1,199 +1,347 @@
-import Chart from 'chart.js/auto';
+import { STORAGE_KEYS, dayKey, getDailyStats } from './src/utils/storage.js';
+import { applyStaticText, initI18n, localeTag, plural, t } from './src/utils/i18n.js';
+import { renderLanguageTile } from './src/ui/language.js';
+import { renderSupport } from './src/ui/support.js';
 
-const STORAGE_KEY = 'attemptCounters';
-const HISTORY_KEY = 'sessionHistory';
-let attemptChart = null;
+const GRAPH_DAYS = 14;
 
-function t(key, fallback = '') {
-  return chrome.i18n?.getMessage?.(key) || fallback;
+const el = id => document.getElementById(id);
+const locale = localeTag;
+
+/* ─────────── formatting ─────────── */
+
+function minutesOf(ms) {
+  return Math.round(ms / 60000);
 }
 
-async function loadCounters() {
-  return new Promise(resolve => {
-    chrome.storage.local.get([STORAGE_KEY], (res) => {
-      resolve(res[STORAGE_KEY] || {});
-    });
-  });
+function formatFocus(ms) {
+  const totalMinutes = minutesOf(ms);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return hours ? { value: `${hours}h${String(minutes).padStart(2, '0')}`, unit: '' }
+    : { value: String(minutes), unit: t('unitMinAbbrev') };
 }
 
-async function loadHistory() {
-  return new Promise(resolve => {
-    chrome.storage.local.get([HISTORY_KEY], (res) => {
-      resolve(res[HISTORY_KEY] || []);
-    });
-  });
-}
+function formatWhen(isoDate) {
+  const date = new Date(isoDate);
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function destroyChart() {
-  if (attemptChart) {
-    attemptChart.destroy();
-    attemptChart = null;
+  if (Number.isNaN(date.getTime())) {
+    return '—';
   }
+
+  return date.toLocaleString(locale(), {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
-function drawChart(entries) {
-  const canvas = document.getElementById('barChart');
-  const chartWrap = document.getElementById('chartWrap');
-  const chartEmpty = document.getElementById('chartEmpty');
+/* ─────────── stat blocks ─────────── */
 
-  destroyChart();
+function statBlock({ label, value, unit, accent = false }) {
+  const block = document.createElement('div');
+  block.className = 'stat';
+  block.dataset.accent = String(accent);
 
-  if (!entries.length) {
-    chartWrap.dataset.empty = 'true';
-    chartEmpty.textContent = t('summaryChartEmpty', 'Nenhuma tentativa registrada');
-    canvas.setAttribute('aria-label', t('summaryChartEmpty', 'Nenhuma tentativa registrada'));
+  const labelNode = document.createElement('span');
+  labelNode.className = 'eyebrow stat__label';
+  labelNode.textContent = label;
+
+  const valueNode = document.createElement('span');
+  valueNode.className = 'numeral stat__value';
+  valueNode.textContent = value;
+
+  if (unit) {
+    const unitNode = document.createElement('span');
+    unitNode.className = 'stat__unit';
+    unitNode.textContent = ` ${unit}`;
+    valueNode.append(unitNode);
+  }
+
+  block.append(labelNode, valueNode);
+  return block;
+}
+
+/**
+ * Consecutive days ending today (or yesterday) with at least one session.
+ * Yesterday counts as alive so the streak does not reset mid-morning.
+ */
+function computeStreak(daily) {
+  const cursor = new Date();
+  let streak = 0;
+
+  if (!(daily[dayKey(cursor)]?.sessions > 0)) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while (daily[dayKey(cursor)]?.sessions > 0) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+function renderStats(daily, history) {
+  const today = daily[dayKey()] || { sessions: 0, focusMs: 0, attempts: 0 };
+  const focus = formatFocus(today.focusMs || 0);
+  const allTimeMs = Object.values(daily).reduce((sum, day) => sum + (day.focusMs || 0), 0);
+  const allTime = formatFocus(allTimeMs);
+
+  const wrap = el('stats');
+  wrap.textContent = '';
+  wrap.append(
+    statBlock({ label: t('statTodayFocus'), value: focus.value, unit: focus.unit, accent: true }),
+    statBlock({ label: t('statTodaySessions'), value: String(today.sessions || 0) }),
+    statBlock({ label: t('statTodayBlocked'), value: String(today.attempts || 0) }),
+    statBlock({ label: t('statStreak'), value: String(computeStreak(daily)), unit: t('unitDaysAbbrev') }),
+    statBlock({ label: t('statAllTime'), value: allTime.value, unit: allTime.unit })
+  );
+
+  el('headSub').textContent = history.length
+    ? t(
+        'summarySub',
+        plural('countSessions', history.length),
+        allTime.value + (allTime.unit ? ` ${allTime.unit}` : '')
+      )
+    : t('summarySubEmpty');
+}
+
+/* ─────────── 14-day graph ─────────── */
+
+function renderGraph(daily) {
+  const graph = el('graph');
+  graph.textContent = '';
+
+  const days = [];
+
+  for (let offset = GRAPH_DAYS - 1; offset >= 0; offset -= 1) {
+    const date = new Date();
+    date.setDate(date.getDate() - offset);
+
+    const key = dayKey(date);
+    const day = daily[key] || {};
+
+    days.push({
+      date,
+      key,
+      focusMs: day.focusMs || 0,
+      attempts: day.attempts || 0,
+      sessions: day.sessions || 0
+    });
+  }
+
+  const peak = Math.max(...days.map(day => day.focusMs), 1);
+  const hasAny = days.some(day => day.focusMs > 0 || day.attempts > 0);
+
+  el('graphEmpty').hidden = hasAny;
+  graph.hidden = !hasAny;
+  el('weekLegend').textContent = hasAny ? t('summaryWeekLegend') : '';
+
+  if (!hasAny) {
     return;
   }
 
-  chartWrap.dataset.empty = 'false';
-  canvas.removeAttribute('aria-label');
+  const todayKey = dayKey();
 
-  const ctx = canvas.getContext('2d');
-  const labels = entries.map(([site]) => site);
-  const values = entries.map(([, count]) => count);
+  for (const day of days) {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.dataset.focus = String(day.focusMs > 0);
+    bar.dataset.today = String(day.key === todayKey);
+    bar.tabIndex = 0;
 
-  attemptChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Tentativas',
-        data: values,
-        borderRadius: 12,
-        borderSkipped: false,
-        barPercentage: 0.7,
-        categoryPercentage: 0.8,
-        backgroundColor: context => {
-          const chart = context.chart;
-          const { ctx: chartCtx, chartArea } = chart;
+    const label = t(
+      'summaryBarTooltip',
+      minutesOf(day.focusMs),
+      plural('countSessions', day.sessions),
+      plural('countBlocked', day.attempts)
+    );
+    bar.setAttribute('aria-label', `${day.key} — ${label}`);
 
-          if (!chartArea) {
-            return '#667eea';
-          }
+    const fill = document.createElement('div');
+    fill.className = 'bar__fill';
+    // Floor at 4% so a day with a short session is still visibly nonzero.
+    fill.style.height = day.focusMs > 0
+      ? `${Math.max(4, (day.focusMs / peak) * 100)}%`
+      : '3px';
 
-          const gradient = chartCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, '#8fb3ff');
-          gradient.addColorStop(1, '#4f46e5');
-          return gradient;
-        },
-        hoverBackgroundColor: '#a78bfa'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 650,
-        easing: 'easeOutQuart'
-      },
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          backgroundColor: 'rgba(15, 23, 42, 0.96)',
-          titleColor: '#ffffff',
-          bodyColor: '#e2e8f0',
-          borderColor: 'rgba(148, 163, 184, 0.22)',
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false,
-          callbacks: {
-            label: context => `${context.formattedValue} tentativas`
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            color: 'rgba(255, 255, 255, 0.06)'
-          },
-          ticks: {
-            color: '#cbd5e1',
-            maxRotation: 0,
-            autoSkip: false
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: 'rgba(255, 255, 255, 0.08)'
-          },
-          ticks: {
-            color: '#cbd5e1',
-            precision: 0
-          }
-        }
-      }
+    const value = document.createElement('span');
+    value.className = 'bar__value';
+    value.textContent = label;
+
+    // Day of month, not weekday: 14 days repeats weekday names, and in
+    // Portuguese three of them abbreviate to "s".
+    const dayName = document.createElement('span');
+    dayName.className = 'bar__day';
+    dayName.textContent = String(day.date.getDate());
+
+    bar.append(value, fill, dayName);
+    graph.append(bar);
+  }
+}
+
+/* ─────────── offenders ─────────── */
+
+function renderRanks(counters) {
+  const entries = Object.entries(counters || {})
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+
+  el('ranksEmpty').hidden = entries.length > 0;
+
+  const list = el('ranks');
+  list.textContent = '';
+  list.hidden = entries.length === 0;
+
+  if (!entries.length) {
+    return;
+  }
+
+  const peak = entries[0][1];
+
+  entries.forEach(([site, count], index) => {
+    const row = document.createElement('li');
+    row.className = 'rank';
+
+    const position = document.createElement('span');
+    position.className = 'rank__pos';
+    position.textContent = String(index + 1).padStart(2, '0');
+
+    const body = document.createElement('div');
+    body.className = 'rank__body';
+
+    const name = document.createElement('span');
+    name.className = 'rank__site';
+    name.textContent = site;
+
+    const track = document.createElement('div');
+    track.className = 'rank__track';
+
+    const bar = document.createElement('div');
+    bar.className = 'rank__bar';
+    bar.style.width = `${(count / peak) * 100}%`;
+
+    track.append(bar);
+    body.append(name, track);
+
+    const countNode = document.createElement('span');
+    countNode.className = 'rank__count';
+    countNode.textContent = String(count);
+
+    row.append(position, body, countNode);
+    list.append(row);
+  });
+}
+
+/* ─────────── history ─────────── */
+
+function renderSessions(history) {
+  const recent = history.slice(-20).reverse();
+
+  el('sessionsEmpty').hidden = recent.length > 0;
+
+  const list = el('sessions');
+  list.textContent = '';
+  list.hidden = recent.length === 0;
+
+  for (const session of recent) {
+    const item = document.createElement('li');
+    item.className = 'session';
+
+    const when = document.createElement('span');
+    when.className = 'session__when';
+    when.textContent = formatWhen(session.date);
+
+    const attempts = Object.values(session.counters || {}).reduce((sum, n) => sum + n, 0);
+
+    // Older records stored `duration` (in minutes) before focusedMs existed.
+    const focusedMs = typeof session.focusedMs === 'number'
+      ? session.focusedMs
+      : (session.duration || 0) * 60000;
+
+    const meta = document.createElement('span');
+    meta.className = 'session__meta';
+    meta.textContent = t(
+      'summarySessionMeta',
+      minutesOf(focusedMs),
+      session.plannedMinutes ?? minutesOf(focusedMs),
+      plural('countBlocked', attempts)
+    );
+
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.dataset.kind = session.completed ? 'done' : 'cut';
+    badge.textContent = session.completed ? t('summaryBadgeDone') : t('summaryBadgeCut');
+
+    item.append(when, meta, badge);
+    list.append(item);
+  }
+}
+
+/* ─────────── load ─────────── */
+
+async function refresh() {
+  const [state, daily] = await Promise.all([
+    chrome.storage.local.get([STORAGE_KEYS.COUNTERS, STORAGE_KEYS.SESSION_HISTORY]),
+    getDailyStats()
+  ]);
+
+  const counters = state[STORAGE_KEYS.COUNTERS] || {};
+  const history = state[STORAGE_KEYS.SESSION_HISTORY] || [];
+
+  renderStats(daily, history);
+  renderGraph(daily);
+  renderRanks(counters);
+  renderSessions(history);
+}
+
+function wire() {
+  el('clearCountersBtn').addEventListener('click', async () => {
+    await chrome.runtime.sendMessage({ action: 'clearCounters' }).catch(() => null);
+    await refresh();
+  });
+
+  el('resetBtn').addEventListener('click', async () => {
+    if (!window.confirm(t('summaryResetConfirm'))) {
+      return;
     }
+
+    await chrome.storage.local.remove([
+      STORAGE_KEYS.SESSION_HISTORY,
+      STORAGE_KEYS.DAILY_STATS,
+      STORAGE_KEYS.COUNTERS
+    ]);
+
+    await chrome.runtime.sendMessage({ action: 'clearCounters' }).catch(() => null);
+    await refresh();
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') {
+      return;
+    }
+
+    if (STORAGE_KEYS.LOCALE in changes) {
+      void applyLocale();
+      return;
+    }
+
+    void refresh();
   });
 }
 
-function renderTable(entries) {
-  const wrap = document.getElementById('tableWrap');
-  if (!entries.length) {
-    wrap.innerHTML = `<div class="empty">${t('summaryNoAttempts', 'Nenhuma tentativa registrada durante a última sessão de foco.')}</div>`;
-    return;
-  }
-  let html = '<table><thead><tr><th>Site</th><th style="text-align:right">Tentativas</th></tr></thead><tbody>';
-  for (const [site, count] of entries) {
-    html += `<tr><td>${escapeHtml(site)}</td><td class="count">${count}</td></tr>`;
-  }
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+async function applyLocale() {
+  await initI18n();
+  applyStaticText();
+  document.title = t('summaryPageTitle');
+  renderLanguageTile(el('langs'));
+  renderSupport(el('supportPanel'), { wide: true });
+  await refresh();
 }
 
-function renderHistory(history) {
-  const wrap = document.getElementById('historyWrap');
-  if (!history.length) {
-    wrap.innerHTML = `<div class="empty">${t('summaryNoHistory', 'Nenhum histórico de sessão disponível.')}</div>`;
-    return;
-  }
-  wrap.innerHTML = history.slice(-10).reverse().map(session => {
-    const date = new Date(session.date).toLocaleString('pt-BR');
-    const attempts = Object.entries(session.counters || {});
-    return `
-      <div class="session">
-        <h3>${date}</h3>
-        <p>Duração: ${session.duration || 0} minutos</p>
-        <p>Total de tentativas: ${attempts.reduce((sum, [, count]) => sum + count, 0)}</p>
-        ${attempts.length > 0 ? `
-          <div class="session-attempts">
-            ${attempts.map(([site, count]) => `<span class="attempt-tag">${site}: ${count}</span>`).join('')}
-          </div>
-        ` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-async function refreshUI() {
-  document.title = t('summaryPageTitle', 'Lock In — Resumo');
-  document.getElementById('summaryTitle').textContent = t('summaryHeading', 'Resumo das Tentativas de Sessão');
-  document.getElementById('historyTitle').textContent = t('summaryHistoryHeading', 'Histórico de Sessões');
-
-  const counters = await loadCounters();
-  const history = await loadHistory();
-
-  const entries = Object.entries(counters).sort((a, b) => b[1] - a[1]);
-  const total = entries.reduce((sum, [, count]) => sum + count, 0);
-
-  document.getElementById('metaText').textContent = t('summaryMetaText', 'Total de tentativas nesta sessão: {0}').replace('{0}', String(total));
-  document.getElementById('totalText').textContent = t('summaryTotalText', 'Total: {0}').replace('{0}', String(total));
-  document.getElementById('lastUpdated').textContent = t('summaryUpdatedText', 'Atualizado: {0}').replace('{0}', new Date().toLocaleString('pt-BR'));
-
-  renderTable(entries);
-  renderHistory(history);
-  drawChart(entries);
-}
-
-// Initial load with small delay to ensure DOM is ready
-setTimeout(() => {
-  refreshUI();
-}, 100);
+wire();
+void applyLocale();

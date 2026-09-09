@@ -1,236 +1,470 @@
-const STORAGE_KEYS = {
-  SITES: 'blockedSites',
-  IS_FOCUS: 'isFocusing',
-  END_TS: 'focusEndTs',
-  COUNTERS: 'attemptCounters',
-  LAST_USED_TIME: 'lastUsedTime',
-  START_TS: 'focusStartTs',
-  IS_PAUSED: 'isPaused',
-  REMAINING_MS: 'remainingMs'
-};
+import { STORAGE_KEYS } from './src/utils/storage.js';
+import { canonicalizeSite, normalizeSites } from './src/core/blocking.js';
+import {
+  applyStaticText,
+  formatClock,
+  formatDuration,
+  initI18n,
+  plural,
+  t
+} from './src/utils/i18n.js';
+import { renderLanguageTile } from './src/ui/language.js';
+import { renderSupport } from './src/ui/support.js';
 
-function $(id){ return document.getElementById(id); }
+const METER_CELLS = 20;
+const DEFAULT_MINUTES = 25;
 
-function t(key, fallback = '') {
-  return chrome.i18n?.getMessage?.(key) || fallback;
+const PRESETS = [
+  { key: 'presetSocial', sites: ['instagram.com', 'x.com', 'tiktok.com', 'facebook.com'] },
+  { key: 'presetVideo', sites: ['youtube.com', 'twitch.tv', 'netflix.com'] },
+  { key: 'presetForums', sites: ['reddit.com', 'news.ycombinator.com'] }
+];
+
+const el = id => document.getElementById(id);
+
+/** Draft list of sites. Committed to storage when a session starts. */
+let draftSites = [];
+let tickHandle = null;
+
+/* ─────────── toast ─────────── */
+
+let toastHandle = null;
+
+function toast(text) {
+  const node = el('toast');
+  node.textContent = text;
+  node.hidden = false;
+
+  clearTimeout(toastHandle);
+  toastHandle = setTimeout(() => {
+    node.hidden = true;
+  }, 2200);
 }
 
-async function getStorage(keys) {
-  return new Promise(resolve => chrome.storage.local.get(keys, resolve));
-}
-async function setStorage(obj) {
-  return new Promise(resolve => chrome.storage.local.set(obj, resolve));
+/* ─────────── site chips ─────────── */
+
+function renderSites() {
+  const list = el('siteList');
+  list.textContent = '';
+
+  for (const site of draftSites) {
+    const item = document.createElement('li');
+    item.className = 'tag';
+
+    const label = document.createElement('span');
+    label.className = 'tag__label';
+    label.textContent = site;
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'tag__remove';
+    remove.textContent = '×';
+    remove.setAttribute('aria-label', t('popupRemoveSite', site));
+    remove.addEventListener('click', () => {
+      draftSites = draftSites.filter(entry => entry !== site);
+      void persistSites();
+      renderSites();
+    });
+
+    item.append(label, remove);
+    list.append(item);
+  }
+
+  el('siteEmpty').hidden = draftSites.length > 0;
+  el('siteCount').textContent = draftSites.length ? String(draftSites.length) : '';
+  el('startBtn').disabled = draftSites.length === 0;
 }
 
-let timerFrameId = null;
+async function persistSites() {
+  await chrome.storage.local.set({ [STORAGE_KEYS.SITES]: draftSites });
+}
 
-function stopTimerFrame() {
-  if (timerFrameId !== null) {
-    cancelAnimationFrame(timerFrameId);
-    timerFrameId = null;
+function addSites(candidates) {
+  const before = draftSites.length;
+  draftSites = normalizeSites([...draftSites, ...candidates]);
+
+  const added = draftSites.length - before;
+  void persistSites();
+  renderSites();
+
+  return added;
+}
+
+function renderPresets() {
+  const wrap = el('presetChips');
+  wrap.textContent = '';
+
+  for (const preset of PRESETS) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.textContent = t(preset.key);
+    chip.addEventListener('click', () => {
+      const added = addSites(preset.sites);
+      toast(added ? plural('popupPresetAdded', added) : t('popupPresetNothingNew'));
+    });
+    wrap.append(chip);
   }
 }
 
-function startTimerFrame(st) {
-  stopTimerFrame();
+/* ─────────── duration ─────────── */
 
-  const isFocus = st?.[STORAGE_KEYS.IS_FOCUS] || false;
-  const isPaused = st?.[STORAGE_KEYS.IS_PAUSED] || false;
+const durationChips = () => document.querySelectorAll('#durationChips [data-minutes]');
 
-  if (!isFocus || isPaused) {
+/**
+ * The preset chips and the free-text field are one control with two faces: the
+ * field holds a value only when it is not one of the presets, so the chosen
+ * duration is never shown twice.
+ */
+function selectedMinutes() {
+  const typed = Number.parseInt(el('minutesInput').value, 10);
+
+  if (Number.isFinite(typed) && typed > 0) {
+    return Math.min(typed, 1440);
+  }
+
+  for (const chip of durationChips()) {
+    if (chip.getAttribute('aria-pressed') === 'true') {
+      return Number(chip.dataset.minutes);
+    }
+  }
+
+  return DEFAULT_MINUTES;
+}
+
+/** Presses the chip matching `minutes`, or none when the value is a custom one. */
+function setDuration(minutes) {
+  let matched = false;
+
+  for (const chip of durationChips()) {
+    const isMatch = Number(chip.dataset.minutes) === minutes;
+    chip.setAttribute('aria-pressed', String(isMatch));
+    matched = matched || isMatch;
+  }
+
+  el('minutesInput').value = matched ? '' : String(minutes);
+}
+
+/** Called as the user types: keep the chips in step with the field. */
+function syncDurationChips() {
+  const typed = Number.parseInt(el('minutesInput').value, 10);
+
+  for (const chip of durationChips()) {
+    chip.setAttribute('aria-pressed', String(Number(chip.dataset.minutes) === typed));
+  }
+}
+
+/* ─────────── meter ─────────── */
+
+function buildMeter() {
+  const meter = el('meter');
+
+  for (let index = 0; index < METER_CELLS; index += 1) {
+    const cell = document.createElement('span');
+    cell.className = 'meter__cell';
+    cell.dataset.on = 'false';
+    meter.append(cell);
+  }
+}
+
+function renderMeter(fraction) {
+  const clamped = Math.max(0, Math.min(1, fraction));
+  const filled = Math.round(clamped * METER_CELLS);
+  const cells = el('meter').children;
+
+  for (let index = 0; index < cells.length; index += 1) {
+    cells[index].dataset.on = String(index < filled);
+  }
+
+  el('meter').setAttribute('aria-valuenow', String(Math.round(clamped * 100)));
+}
+
+/* ─────────── tally ─────────── */
+
+function renderTally(counters) {
+  const entries = Object.entries(counters || {})
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  el('tallyBlock').hidden = entries.length === 0;
+
+  const list = el('tallyList');
+  list.textContent = '';
+
+  const max = entries.length ? entries[0][1] : 1;
+
+  for (const [site, count] of entries) {
+    const row = document.createElement('li');
+    row.className = 'tally__row';
+
+    const name = document.createElement('span');
+    name.className = 'tally__site';
+    name.textContent = site;
+
+    const countWrap = document.createElement('span');
+    countWrap.className = 'tally__count';
+
+    const blocks = document.createElement('span');
+    blocks.className = 'tally__blocks';
+
+    // Cap the bar so one runaway site cannot squash the rest.
+    const barLength = Math.max(1, Math.round((count / max) * 5));
+
+    for (let index = 0; index < barLength; index += 1) {
+      blocks.append(document.createElement('i'));
+    }
+
+    const number = document.createElement('span');
+    number.textContent = String(count);
+
+    countWrap.append(blocks, number);
+    row.append(name, countWrap);
+    list.append(row);
+  }
+}
+
+/* ─────────── render ─────────── */
+
+let lastSnapshot = null;
+
+function renderRunning(snapshot) {
+  const isPaused = Boolean(snapshot[STORAGE_KEYS.IS_PAUSED]);
+  const startTs = snapshot[STORAGE_KEYS.START_TS] || 0;
+  const endTs = snapshot[STORAGE_KEYS.END_TS] || 0;
+  const remainingMs = isPaused
+    ? snapshot[STORAGE_KEYS.REMAINING_MS] || 0
+    : Math.max(0, endTs - Date.now());
+
+  const totalMs = Math.max(1, endTs - startTs);
+  const counters = snapshot[STORAGE_KEYS.COUNTERS] || {};
+  const attempts = Object.values(counters).reduce((sum, n) => sum + n, 0);
+
+  el('hero').dataset.paused = String(isPaused);
+  el('clock').textContent = formatClock(remainingMs);
+  el('heroLabel').textContent = isPaused ? t('popupPausedLabel') : t('popupRunningLabel');
+  el('heroFoot').textContent = attempts
+    ? plural('popupHeroBlocked', attempts)
+    : t('popupHeroClean');
+
+  renderMeter(1 - remainingMs / totalMs);
+
+  const pauseBtn = el('pauseBtn');
+  pauseBtn.textContent = isPaused ? t('popupResume') : t('popupPause');
+
+  el('stateDot').dataset.state = isPaused ? 'paused' : 'on';
+  el('stateLabel').textContent = isPaused ? t('popupPausedLabel') : t('popupRunningLabel');
+
+  renderTally(counters);
+}
+
+function renderIdle(snapshot) {
+  el('stateDot').dataset.state = 'off';
+  el('stateLabel').textContent = t('popupIdleLabel');
+
+  setDuration(snapshot[STORAGE_KEYS.LAST_USED_TIME] || DEFAULT_MINUTES);
+  renderSites();
+}
+
+function renderToday(today) {
+  const stats = today || { sessions: 0, focusMs: 0, attempts: 0 };
+
+  el('todayLine').textContent = stats.sessions || stats.attempts
+    ? t(
+        'popupToday',
+        plural('countSessions', stats.sessions),
+        formatDuration(stats.focusMs),
+        plural('countBlocked', stats.attempts)
+      )
+    : t('popupTodayEmpty');
+}
+
+function render(snapshot) {
+  lastSnapshot = snapshot;
+
+  const isFocusing = Boolean(snapshot[STORAGE_KEYS.IS_FOCUS]);
+
+  el('viewIdle').hidden = isFocusing;
+  el('viewRunning').hidden = !isFocusing;
+
+  if (isFocusing) {
+    renderRunning(snapshot);
+  } else {
+    renderIdle(snapshot);
+  }
+
+  renderToday(snapshot.today);
+  scheduleTick(snapshot);
+}
+
+/* ─────────── ticking ─────────── */
+
+function scheduleTick(snapshot) {
+  clearInterval(tickHandle);
+  tickHandle = null;
+
+  const running = snapshot[STORAGE_KEYS.IS_FOCUS] && !snapshot[STORAGE_KEYS.IS_PAUSED];
+
+  if (!running) {
     return;
   }
 
-  const frame = () => {
-    const currentState = st;
-
-    if (!currentState?.[STORAGE_KEYS.IS_FOCUS] || currentState?.[STORAGE_KEYS.IS_PAUSED]) {
-      timerFrameId = null;
+  // Half-second cadence keeps the seconds digit honest without a rAF loop.
+  tickHandle = setInterval(() => {
+    if (!lastSnapshot) {
       return;
     }
 
-    updateTimer(currentState[STORAGE_KEYS.END_TS], currentState);
-    timerFrameId = requestAnimationFrame(frame);
-  };
+    const endTs = lastSnapshot[STORAGE_KEYS.END_TS] || 0;
 
-  timerFrameId = requestAnimationFrame(frame);
+    if (endTs - Date.now() <= 0) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+      void refresh();
+      return;
+    }
+
+    renderRunning(lastSnapshot);
+  }, 500);
 }
 
-async function loadUI() {
-  $('statusText').innerText = t('popupLoading', 'Carregando...');
-  document.title = t('popupTitle', 'Lock In');
-  $('appTitle').textContent = t('appName', 'Lock In');
-  $('blockedSitesLabel').textContent = t('popupBlockedSitesLabel', 'Sites bloqueados (uma por linha):');
-  $('sitesInput').placeholder = t('popupSitesPlaceholder', 'ex: twitter.com');
-  $('focusTimeLabel').textContent = t('popupFocusTimeLabel', 'Tempo de foco (min)');
+/* ─────────── actions ─────────── */
 
-  const st = await getStorage([STORAGE_KEYS.SITES, STORAGE_KEYS.IS_FOCUS, STORAGE_KEYS.END_TS, STORAGE_KEYS.COUNTERS, STORAGE_KEYS.LAST_USED_TIME, STORAGE_KEYS.START_TS, STORAGE_KEYS.IS_PAUSED, STORAGE_KEYS.REMAINING_MS]);
-  const sites = st[STORAGE_KEYS.SITES] || [];
-  $('sitesInput').value = sites.join('\n');
-
-  // Load the last used time or default to 25 minutes
-  const lastUsedTime = st[STORAGE_KEYS.LAST_USED_TIME] || 25;
-  $('minutesInput').value = lastUsedTime;
-
-  updateStatus(st);
-
-  $('startBtn').textContent = t('popupStartFocus', 'Iniciar foco');
-  $('startBtn').setAttribute('aria-label', t('popupStartFocusAria', 'Iniciar foco'));
-  $('pauseBtn').setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
-  $('stopBtn').textContent = t('popupStopFocus', 'Parar');
-  $('stopBtn').setAttribute('aria-label', t('popupStopFocusAria', 'Parar foco'));
-  $('showSummary').textContent = t('popupShowSummary', 'Mostrar resumo');
-  $('showSummary').setAttribute('aria-label', t('popupShowSummaryAria', 'Mostrar resumo'));
-  $('clearCounts').textContent = t('popupClearCounts', 'Limpar contadores');
-  $('clearCounts').setAttribute('aria-label', t('popupClearCountsAria', 'Limpar contadores'));
-}
-
-function updateStatus(st) {
-  const isFocus = st?.[STORAGE_KEYS.IS_FOCUS] || false;
-  const isPaused = st?.[STORAGE_KEYS.IS_PAUSED] || false;
-  const endTs = st?.[STORAGE_KEYS.END_TS] || 0;
-  if (isFocus) {
-    if (isPaused) {
-      $('statusText').innerText = t('popupStatusPaused', 'Modo foco pausado');
-      $('timerText').innerText = t('popupTimerPaused', 'Pausado');
-      updateCircle(0, 1, t('popupTimerPauseCircle', 'Pausa'));
-      stopTimerFrame();
-    } else {
-      $('statusText').innerText = t('popupStatusActive', 'Modo foco ativo');
-      updateTimer(endTs, st);
-      startTimerFrame(st);
-    }
-  } else {
-    $('statusText').innerText = t('popupStatusInactive', 'Modo foco inativo');
-    $('timerText').innerText = '';
-    updateCircle(0, 1, '');
-    stopTimerFrame();
-  }
-
-  // Update pause button text
-  const pauseBtn = $('pauseBtn');
-  if (isFocus) {
-    pauseBtn.disabled = false;
-    if (isPaused) {
-      pauseBtn.textContent = t('popupResumeFocus', 'Retomar');
-      pauseBtn.setAttribute('aria-label', t('popupResumeFocusAria', 'Retomar foco'));
-    } else {
-      pauseBtn.textContent = t('popupPauseFocus', 'Pausar');
-      pauseBtn.setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
-    }
-  } else {
-    pauseBtn.disabled = true;
-    pauseBtn.textContent = t('popupPauseFocus', 'Pausar');
-    pauseBtn.setAttribute('aria-label', t('popupPauseFocusAria', 'Pausar foco'));
+async function send(action, payload = {}) {
+  try {
+    return await chrome.runtime.sendMessage({ action, ...payload });
+  } catch {
+    return null;
   }
 }
 
-function updateTimer(endTs, st) {
-  const msLeft = endTs - Date.now();
-  if (msLeft <= 0) {
-    $('timerText').innerText = t('popupTimerFinished', 'Tempo finalizado');
-    updateCircle(0, 1, '');
-    stopTimerFrame();
+async function refresh() {
+  const snapshot = await send('getStatus');
+
+  if (!snapshot) {
     return;
   }
-  const m = Math.floor(msLeft/60000);
-  const s = Math.floor((msLeft%60000)/1000).toString().padStart(2,'0');
-  $('timerText').innerText = `${m}:${s} restantes`;
-  // Circle progress
-  const startTs = st[STORAGE_KEYS.START_TS] || 0;
-  const totalDuration = startTs && startTs < endTs ? endTs - startTs : 25 * 60 * 1000;
-  const progress = Math.max(0, Math.min(1, msLeft / totalDuration));
-  updateCircle(progress, 1, `${m}:${s}`);
+
+  if (!snapshot[STORAGE_KEYS.IS_FOCUS]) {
+    draftSites = normalizeSites(snapshot[STORAGE_KEYS.SITES] || []);
+  }
+
+  render(snapshot);
 }
 
-function updateCircle(progress, max, text) {
-  const circleFg = document.querySelector('.circle-fg');
-  const circleBg = document.querySelector('.circle-bg');
-  const radius = 32;
-  const circumference = 2 * Math.PI * radius;
-  
-  if (circleFg) {
-    // Inner circle fills as time progresses
-    const fgOffset = circumference * (1 - progress);
-    circleFg.setAttribute('stroke-dasharray', circumference);
-    circleFg.setAttribute('stroke-dashoffset', fgOffset);
-  }
-  
-  if (circleBg) {
-    // Outer circle empties as time runs out
-    const bgOffset = circumference * progress;
-    circleBg.setAttribute('stroke-dasharray', circumference);
-    circleBg.setAttribute('stroke-dashoffset', bgOffset);
-  }
-  
-  const circleText = document.getElementById('circleText');
-  if (circleText) circleText.textContent = text;
-}
+function wire() {
+  el('addForm').addEventListener('submit', event => {
+    event.preventDefault();
 
-$('startBtn').addEventListener('click', async () => {
-  const st = await getStorage([STORAGE_KEYS.IS_PAUSED, STORAGE_KEYS.IS_FOCUS]);
-  const isPaused = st[STORAGE_KEYS.IS_PAUSED] || false;
-  const isFocus = st[STORAGE_KEYS.IS_FOCUS] || false;
+    const input = el('siteInput');
+    const candidate = canonicalizeSite(input.value);
 
-  if (isFocus && isPaused) {
-    // Resume
-    chrome.runtime.sendMessage({ action: 'resumeFocus' }, () => {
-      loadUI();
-      window.close();
-    });
-  } else {
-    // Start new session
-    const minutes = parseInt($('minutesInput').value) || 25;
-    const sites = $('sitesInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!candidate) {
+      toast(t('popupSiteInvalid'));
+      return;
+    }
 
-    // Save the last used time
-    await setStorage({ [STORAGE_KEYS.LAST_USED_TIME]: minutes });
+    if (draftSites.includes(candidate)) {
+      toast(t('popupSiteDuplicate', candidate));
+      input.value = '';
+      return;
+    }
 
-    await setStorage({ [STORAGE_KEYS.SITES]: sites });
-    chrome.runtime.sendMessage({ action: 'startFocus', minutes, blockedSites: sites }, () => {
-      loadUI();
-      window.close();
-    });
-  }
-});
-
-$('pauseBtn').addEventListener('click', async () => {
-  const st = await getStorage([STORAGE_KEYS.IS_PAUSED, STORAGE_KEYS.IS_FOCUS]);
-  const isPaused = st[STORAGE_KEYS.IS_PAUSED] || false;
-  const isFocus = st[STORAGE_KEYS.IS_FOCUS] || false;
-
-  if (!isFocus) return; // Safety check, though button should be disabled
-
-  if (isPaused) {
-    // Resume
-    chrome.runtime.sendMessage({ action: 'resumeFocus' }, () => {
-      loadUI();
-      window.close();
-    });
-  } else {
-    // Pause
-    chrome.runtime.sendMessage({ action: 'pauseFocus' }, () => {
-      loadUI();
-      window.close();
-    });
-  }
-});
-
-$('stopBtn').addEventListener('click', async () => {
-  chrome.runtime.sendMessage({ action: 'stopFocus' }, () => {
-    loadUI();
-    window.close();
+    addSites([candidate]);
+    input.value = '';
+    input.focus();
   });
-});
 
-// Add event listener to open the summary page
-document.getElementById('showSummary').addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
-});
+  el('durationChips').addEventListener('click', event => {
+    const chip = event.target.closest('[data-minutes]');
 
-$('clearCounts').addEventListener('click', async () => {
-  await setStorage({ [STORAGE_KEYS.COUNTERS]: {} });
-  alert(t('popupCountsCleared', 'Contadores limpos.'));
-});
+    if (!chip) {
+      return;
+    }
 
-document.addEventListener('DOMContentLoaded', loadUI);
+    setDuration(Number(chip.dataset.minutes));
+  });
+
+  el('minutesInput').addEventListener('input', syncDurationChips);
+
+  el('startBtn').addEventListener('click', async () => {
+    if (!draftSites.length) {
+      toast(t('popupSitesEmpty'));
+      return;
+    }
+
+    await send('startFocus', { minutes: selectedMinutes(), blockedSites: draftSites });
+    await refresh();
+  });
+
+  el('pauseBtn').addEventListener('click', async () => {
+    const isPaused = Boolean(lastSnapshot?.[STORAGE_KEYS.IS_PAUSED]);
+    await send(isPaused ? 'resumeFocus' : 'pauseFocus');
+    await refresh();
+  });
+
+  el('stopBtn').addEventListener('click', async () => {
+    await send('stopFocus');
+    await refresh();
+  });
+
+  el('summaryBtn').addEventListener('click', () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
+  });
+
+  el('supportBtn').addEventListener('click', () => {
+    const panel = el('supportPanel');
+    const opening = panel.hidden;
+
+    if (opening) {
+      renderSupport(panel, { wide: false });
+    }
+
+    panel.hidden = !opening;
+    el('supportBtn').setAttribute('aria-expanded', String(opening));
+    el('supportBtn').dataset.open = String(opening);
+  });
+
+  // The session can end from the alarm while the popup is open.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') {
+      return;
+    }
+
+    // A language change can come from this popup or from an open summary tab.
+    if (STORAGE_KEYS.LOCALE in changes) {
+      void applyLocale();
+      return;
+    }
+
+    const watched = [
+      STORAGE_KEYS.IS_FOCUS,
+      STORAGE_KEYS.IS_PAUSED,
+      STORAGE_KEYS.END_TS,
+      STORAGE_KEYS.COUNTERS
+    ];
+
+    if (watched.some(key => key in changes)) {
+      void refresh();
+    }
+  });
+
+  window.addEventListener('unload', () => clearInterval(tickHandle));
+}
+
+/** Everything holding a translated string, rebuilt for the active language. */
+async function applyLocale() {
+  await initI18n();
+  applyStaticText();
+  renderPresets();
+  renderLanguageTile(el('langs'));
+
+  if (!el('supportPanel').hidden) {
+    renderSupport(el('supportPanel'), { wide: false });
+  }
+
+  await refresh();
+}
+
+buildMeter();
+wire();
+void applyLocale();

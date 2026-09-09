@@ -1,119 +1,286 @@
 {
-  "appName": {
+  "extName": {
     "message": "Lock In"
   },
-  "popupTitle": {
-    "message": "Lock In"
+  "extDescription": {
+    "message": "Locks the sites that derail you for as long as you choose — and counts every time you try to sneak back."
   },
-  "popupBlockedSitesLabel": {
-    "message": "Blocked sites (one per line):"
+  "popupIdleLabel": {
+    "message": "unlocked"
+  },
+  "popupRunningLabel": {
+    "message": "locked"
+  },
+  "popupPausedLabel": {
+    "message": "paused"
+  },
+  "popupDurationLabel": {
+    "message": "for how long"
+  },
+  "popupMinutesShort": {
+    "message": "min"
+  },
+  "popupSitesLabel": {
+    "message": "what stays out"
   },
   "popupSitesPlaceholder": {
-    "message": "e.g. twitter.com"
+    "message": "instagram.com"
   },
-  "popupFocusTimeLabel": {
-    "message": "Focus time (min)"
+  "popupAdd": {
+    "message": "add"
   },
-  "popupStartFocus": {
-    "message": "Start focus"
+  "popupSitesHint": {
+    "message": "a domain or a word. \"reddit\" catches old.reddit.com too."
   },
-  "popupStartFocusAria": {
-    "message": "Start focus"
+  "popupSitesEmpty": {
+    "message": "empty list. no list, no lock."
   },
-  "popupPauseFocus": {
-    "message": "Pause"
+  "popupPresetsLabel": {
+    "message": "shortcuts"
   },
-  "popupPauseFocusAria": {
-    "message": "Pause focus"
+  "popupRemoveSite": {
+    "message": "remove $1"
   },
-  "popupResumeFocus": {
-    "message": "Resume"
+  "popupSiteInvalid": {
+    "message": "that does not look like a site."
   },
-  "popupResumeFocusAria": {
-    "message": "Resume focus"
+  "popupSiteDuplicate": {
+    "message": "$1 is already on the list."
   },
-  "popupStopFocus": {
-    "message": "Stop"
+  "popupPresetNothingNew": {
+    "message": "all of those are already on the list."
   },
-  "popupStopFocusAria": {
-    "message": "Stop focus"
+  "presetSocial": {
+    "message": "social"
   },
-  "popupShowSummary": {
-    "message": "Show summary"
+  "presetVideo": {
+    "message": "video"
   },
-  "popupShowSummaryAria": {
-    "message": "Show summary"
+  "presetForums": {
+    "message": "forums"
   },
-  "popupClearCounts": {
-    "message": "Clear counters"
+  "popupStart": {
+    "message": "lock in"
   },
-  "popupClearCountsAria": {
-    "message": "Clear counters"
+  "popupPause": {
+    "message": "pause"
   },
-  "popupStatusPaused": {
-    "message": "Focus mode paused"
+  "popupResume": {
+    "message": "resume"
   },
-  "popupStatusActive": {
-    "message": "Focus mode active"
+  "popupStop": {
+    "message": "unlock"
   },
-  "popupStatusInactive": {
-    "message": "Focus mode inactive"
+  "popupTallyLabel": {
+    "message": "blocked this session"
   },
-  "popupLoading": {
-    "message": "Loading..."
+  "popupSummary": {
+    "message": "see the numbers"
   },
-  "popupTimerPaused": {
-    "message": "Paused"
+  "popupHeroClean": {
+    "message": "no detours yet. impressive."
   },
-  "popupTimerPauseCircle": {
-    "message": "Pause"
+  "popupToday": {
+    "message": "today: $1 · $2 · $3"
   },
-  "popupTimerFinished": {
-    "message": "Time is up"
-  },
-  "popupCountsCleared": {
-    "message": "Counters cleared."
+  "popupTodayEmpty": {
+    "message": "nothing today yet."
   },
   "blockedPageTitle": {
-    "message": "Blocked — Lock In"
+    "message": "nope — Lock In"
   },
-  "blockedPageHeading": {
-    "message": "Oops — site blocked"
+  "blockedShout1": {
+    "message": "nope."
   },
-  "blockedPageDescription": {
-    "message": "This site is blocked because you are in a focus session."
+  "blockedShout2": {
+    "message": "again?"
   },
-  "blockedAttemptLabel": {
-    "message": "Attempt:"
+  "blockedShout3": {
+    "message": "really?"
   },
-  "blockedCloseButton": {
-    "message": "Close"
+  "blockedShout4": {
+    "message": "rough one today, huh."
+  },
+  "blockedThisSite": {
+    "message": "this site"
+  },
+  "blockedSiteVerb": {
+    "message": "can wait."
+  },
+  "blockedRemainingLabel": {
+    "message": "time left"
+  },
+  "blockedTallyFirst": {
+    "message": "first try. let us see how long that lasts."
+  },
+  "blockedTallySession": {
+    "message": "try number $1 this session. noted."
+  },
+  "blockedTallyToday": {
+    "message": "try number $1 today. all noted."
+  },
+  "blockedBack": {
+    "message": "back to work"
+  },
+  "blockedFootNoteOver": {
+    "message": "nothing is blocked any more. enjoy."
+  },
+  "blockedFootNote": {
+    "message": "your session is still running. this does not count as a break."
+  },
+  "blockedSessionOver": {
+    "message": "session is over. you are free."
+  },
+  "blockedGoNow": {
+    "message": "carry on"
   },
   "summaryPageTitle": {
-    "message": "Lock In — Summary"
+    "message": "the numbers — Lock In"
   },
   "summaryHeading": {
-    "message": "Session Attempts Summary"
+    "message": "the numbers"
   },
-  "summaryHistoryHeading": {
-    "message": "Session History"
+  "summarySub": {
+    "message": "$1 · $2 focused in total"
   },
-  "summaryMetaText": {
-    "message": "Total attempts in this session: {0}"
+  "summarySubEmpty": {
+    "message": "nothing on record yet. lock a session and come back."
   },
-  "summaryTotalText": {
-    "message": "Total: {0}"
+  "summaryReset": {
+    "message": "wipe everything"
   },
-  "summaryUpdatedText": {
-    "message": "Updated: {0}"
+  "summaryResetConfirm": {
+    "message": "This deletes all history, daily stats and counters. There is no undo. Continue?"
+  },
+  "summaryWeekTitle": {
+    "message": "last 14 days"
+  },
+  "summaryWeekLegend": {
+    "message": "focused minutes per day"
+  },
+  "summaryBarTooltip": {
+    "message": "$1 min · $2 · $3"
+  },
+  "summaryNoData": {
+    "message": "no data yet."
+  },
+  "summaryOffendersTitle": {
+    "message": "who kept calling"
+  },
+  "summaryClearCounters": {
+    "message": "reset counters"
   },
   "summaryNoAttempts": {
-    "message": "No attempts recorded during the last focus session."
+    "message": "no detours recorded in the current session."
+  },
+  "summaryHistoryTitle": {
+    "message": "history"
   },
   "summaryNoHistory": {
-    "message": "No session history available."
+    "message": "no sessions on record."
   },
-  "summaryChartEmpty": {
-    "message": "No attempts recorded"
+  "summarySessionMeta": {
+    "message": "$1 min of $2 planned · $3"
+  },
+  "summaryBadgeDone": {
+    "message": "completed"
+  },
+  "summaryBadgeCut": {
+    "message": "cut short"
+  },
+  "statTodayFocus": {
+    "message": "focus today"
+  },
+  "statTodaySessions": {
+    "message": "sessions today"
+  },
+  "statTodayBlocked": {
+    "message": "blocked today"
+  },
+  "statStreak": {
+    "message": "streak"
+  },
+  "statAllTime": {
+    "message": "focus all time"
+  },
+  "unitMinutes": {
+    "message": "$1 min"
+  },
+  "unitHours": {
+    "message": "$1h"
+  },
+  "unitHoursMinutes": {
+    "message": "$HOURS$h$MINUTES$",
+    "placeholders": {
+      "HOURS": {
+        "content": "$1"
+      },
+      "MINUTES": {
+        "content": "$2"
+      }
+    }
+  },
+  "unitMinAbbrev": {
+    "message": "min"
+  },
+  "unitDaysAbbrev": {
+    "message": "d"
+  },
+  "countSessionsOne": {
+    "message": "1 session"
+  },
+  "countSessionsOther": {
+    "message": "$1 sessions"
+  },
+  "countBlockedOne": {
+    "message": "1 blocked"
+  },
+  "countBlockedOther": {
+    "message": "$1 blocked"
+  },
+  "popupHeroBlockedOne": {
+    "message": "1 detour blocked so far."
+  },
+  "popupHeroBlockedOther": {
+    "message": "$1 detours blocked so far."
+  },
+  "popupPresetAddedOne": {
+    "message": "1 site added."
+  },
+  "popupPresetAddedOther": {
+    "message": "$1 sites added."
+  },
+  "blockedPausedNote": {
+    "message": "session paused. the sites come back when you resume."
+  },
+  "supportButton": {
+    "message": "buy me a coffee"
+  },
+  "supportPitch": {
+    "message": "liked it? buy me a coffee."
+  },
+  "supportNote": {
+    "message": "no tracking, no paid tier, no ads. that is the whole thing."
+  },
+  "supportOpenLivepix": {
+    "message": "open LivePix"
+  },
+  "supportCopy": {
+    "message": "copy"
+  },
+  "supportCopied": {
+    "message": "copied"
+  },
+  "supportCopyFailed": {
+    "message": "no luck"
+  },
+  "supportCopyAria": {
+    "message": "copy $1 address"
+  },
+  "supportQrAlt": {
+    "message": "QR code for $1"
+  },
+  "summarySupportTitle": {
+    "message": "donations"
   }
 }

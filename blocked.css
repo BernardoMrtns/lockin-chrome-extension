@@ -1,0 +1,161 @@
+/*
+ * Full-page interruption. The pink field is deliberate: it is the one screen in
+ * the extension that should feel like running into a wall.
+ */
+body {
+  min-height: 100vh;
+  background: var(--pink);
+  color: var(--ink);
+  display: flex;
+}
+
+/* Diagonal hazard stripes, drawn in CSS so nothing is fetched. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(10, 10, 10, 0.07) 0 14px,
+    transparent 14px 28px
+  );
+  pointer-events: none;
+}
+
+.stage {
+  position: relative;
+  width: min(560px, 100%);
+  margin: auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.stage__bar,
+.stage__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.stage__bar .eyebrow,
+.stage__foot .hint {
+  color: rgba(10, 10, 10, 0.62);
+}
+
+.stage__bar .wordmark::before {
+  background: var(--lime);
+}
+
+.slab {
+  padding: 30px 26px 26px;
+  background: var(--paper-raised);
+  border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 8px 8px 0 var(--ink);
+}
+
+.slab__shout {
+  margin: 0;
+  font-size: clamp(40px, 11vw, 62px);
+  font-weight: 700;
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  text-transform: lowercase;
+}
+
+.slab__site {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  margin: 18px 0 0;
+  font-size: 16px;
+}
+
+.slab__site-name {
+  padding: 3px 9px;
+  background: var(--lime);
+  color: var(--on-lime);
+  border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius);
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slab__site-verb {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.clockline {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: var(--border-w) solid var(--ink);
+}
+
+.clockline__value {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.slab__tally {
+  margin: 16px 0 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.slab__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 26px;
+}
+
+.slab__actions .btn {
+  flex: 1 1 auto;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11.5px;
+}
+
+@media (max-width: 460px) {
+  .stage {
+    padding: 22px 16px;
+  }
+
+  .slab {
+    padding: 24px 18px 20px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .slab__actions .btn {
+    flex-basis: 100%;
+  }
+}
+
+/*
+ * The pink field is fixed in both schemes, so the surrounding ink must be too —
+ * otherwise dark mode inverts the text on top of it into invisibility.
+ */
+@media (prefers-color-scheme: dark) {
+  body {
+    --ink: #0a0a0a;
+    --ink-soft: #6b665c;
+    --paper-raised: #fffdf7;
+    --paper-sunken: #e6e0d1;
+    --paper: #f2ede1;
+  }
+}

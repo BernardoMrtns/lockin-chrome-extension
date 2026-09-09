@@ -1,119 +1,286 @@
 {
-  "appName": {
+  "extName": {
     "message": "Lock In"
   },
-  "popupTitle": {
-    "message": "Lock In"
+  "extDescription": {
+    "message": "Tranca os sites que te distraem pelo tempo que você escolher — e conta cada vez que você tenta escapar."
   },
-  "popupBlockedSitesLabel": {
-    "message": "Sites bloqueados (uma por linha):"
+  "popupIdleLabel": {
+    "message": "destrancado"
+  },
+  "popupRunningLabel": {
+    "message": "trancado"
+  },
+  "popupPausedLabel": {
+    "message": "pausado"
+  },
+  "popupDurationLabel": {
+    "message": "por quanto tempo"
+  },
+  "popupMinutesShort": {
+    "message": "min"
+  },
+  "popupSitesLabel": {
+    "message": "o que fica de fora"
   },
   "popupSitesPlaceholder": {
-    "message": "ex: twitter.com"
+    "message": "instagram.com"
   },
-  "popupFocusTimeLabel": {
-    "message": "Tempo de foco (min)"
+  "popupAdd": {
+    "message": "add"
   },
-  "popupStartFocus": {
-    "message": "Iniciar foco"
+  "popupSitesHint": {
+    "message": "um domínio ou uma palavra. \"reddit\" pega old.reddit.com também."
   },
-  "popupStartFocusAria": {
-    "message": "Iniciar foco"
+  "popupSitesEmpty": {
+    "message": "lista vazia. sem lista, sem tranca."
   },
-  "popupPauseFocus": {
-    "message": "Pausar"
+  "popupPresetsLabel": {
+    "message": "atalhos"
   },
-  "popupPauseFocusAria": {
-    "message": "Pausar foco"
+  "popupRemoveSite": {
+    "message": "remover $1"
   },
-  "popupResumeFocus": {
-    "message": "Retomar"
+  "popupSiteInvalid": {
+    "message": "isso não parece um site."
   },
-  "popupResumeFocusAria": {
-    "message": "Retomar foco"
+  "popupSiteDuplicate": {
+    "message": "$1 já está na lista."
   },
-  "popupStopFocus": {
-    "message": "Parar"
+  "popupPresetNothingNew": {
+    "message": "já está tudo na lista."
   },
-  "popupStopFocusAria": {
-    "message": "Parar foco"
+  "presetSocial": {
+    "message": "redes"
   },
-  "popupShowSummary": {
-    "message": "Mostrar resumo"
+  "presetVideo": {
+    "message": "vídeo"
   },
-  "popupShowSummaryAria": {
-    "message": "Mostrar resumo"
+  "presetForums": {
+    "message": "fóruns"
   },
-  "popupClearCounts": {
-    "message": "Limpar contadores"
+  "popupStart": {
+    "message": "trancar"
   },
-  "popupClearCountsAria": {
-    "message": "Limpar contadores"
+  "popupPause": {
+    "message": "pausar"
   },
-  "popupStatusPaused": {
-    "message": "Modo foco pausado"
+  "popupResume": {
+    "message": "retomar"
   },
-  "popupStatusActive": {
-    "message": "Modo foco ativo"
+  "popupStop": {
+    "message": "destrancar"
   },
-  "popupStatusInactive": {
-    "message": "Modo foco inativo"
+  "popupTallyLabel": {
+    "message": "barrados nesta sessão"
   },
-  "popupLoading": {
-    "message": "Carregando..."
+  "popupSummary": {
+    "message": "ver os números"
   },
-  "popupTimerPaused": {
-    "message": "Pausado"
+  "popupHeroClean": {
+    "message": "nenhum desvio ainda. impressionante."
   },
-  "popupTimerPauseCircle": {
-    "message": "Pausa"
+  "popupToday": {
+    "message": "hoje: $1 · $2 · $3"
   },
-  "popupTimerFinished": {
-    "message": "Tempo finalizado"
-  },
-  "popupCountsCleared": {
-    "message": "Contadores limpos."
+  "popupTodayEmpty": {
+    "message": "hoje ainda não rolou nada."
   },
   "blockedPageTitle": {
-    "message": "Bloqueado — Lock In"
+    "message": "nem vem — Lock In"
   },
-  "blockedPageHeading": {
-    "message": "Ops — site bloqueado"
+  "blockedShout1": {
+    "message": "nem vem."
   },
-  "blockedPageDescription": {
-    "message": "Este site está bloqueado porque você está em uma sessão de foco."
+  "blockedShout2": {
+    "message": "de novo?"
   },
-  "blockedAttemptLabel": {
-    "message": "Tentativa:"
+  "blockedShout3": {
+    "message": "sério isso?"
   },
-  "blockedCloseButton": {
-    "message": "Fechar"
+  "blockedShout4": {
+    "message": "tá difícil hoje, né."
+  },
+  "blockedThisSite": {
+    "message": "este site"
+  },
+  "blockedSiteVerb": {
+    "message": "fica pra depois."
+  },
+  "blockedRemainingLabel": {
+    "message": "faltam"
+  },
+  "blockedTallyFirst": {
+    "message": "primeira tentativa. vamos ver quanto dura."
+  },
+  "blockedTallySession": {
+    "message": "tentativa nº $1 nesta sessão. anotado."
+  },
+  "blockedTallyToday": {
+    "message": "tentativa nº $1 hoje. tudo anotado."
+  },
+  "blockedBack": {
+    "message": "voltar ao trabalho"
+  },
+  "blockedFootNoteOver": {
+    "message": "nada mais está bloqueado. aproveita."
+  },
+  "blockedFootNote": {
+    "message": "sua sessão continua rodando. isso aqui não conta como pausa."
+  },
+  "blockedSessionOver": {
+    "message": "a sessão acabou. está liberado."
+  },
+  "blockedGoNow": {
+    "message": "seguir em frente"
   },
   "summaryPageTitle": {
-    "message": "Lock In — Resumo"
+    "message": "os números — Lock In"
   },
   "summaryHeading": {
-    "message": "Resumo das Tentativas de Sessão"
+    "message": "os números"
   },
-  "summaryHistoryHeading": {
-    "message": "Histórico de Sessões"
+  "summarySub": {
+    "message": "$1 · $2 de foco no total"
   },
-  "summaryMetaText": {
-    "message": "Total de tentativas nesta sessão: {0}"
+  "summarySubEmpty": {
+    "message": "nada registrado ainda. tranca uma sessão e volta aqui."
   },
-  "summaryTotalText": {
-    "message": "Total: {0}"
+  "summaryReset": {
+    "message": "apagar tudo"
   },
-  "summaryUpdatedText": {
-    "message": "Atualizado: {0}"
+  "summaryResetConfirm": {
+    "message": "Isso apaga todo o histórico, as estatísticas diárias e os contadores. Não tem como desfazer. Continuar?"
+  },
+  "summaryWeekTitle": {
+    "message": "últimos 14 dias"
+  },
+  "summaryWeekLegend": {
+    "message": "minutos de foco por dia"
+  },
+  "summaryBarTooltip": {
+    "message": "$1 min · $2 · $3"
+  },
+  "summaryNoData": {
+    "message": "sem dados ainda."
+  },
+  "summaryOffendersTitle": {
+    "message": "quem mais te chamou"
+  },
+  "summaryClearCounters": {
+    "message": "zerar contadores"
   },
   "summaryNoAttempts": {
-    "message": "Nenhuma tentativa registrada durante a última sessão de foco."
+    "message": "nenhum desvio registrado na sessão atual."
+  },
+  "summaryHistoryTitle": {
+    "message": "histórico"
   },
   "summaryNoHistory": {
-    "message": "Nenhum histórico de sessão disponível."
+    "message": "nenhuma sessão registrada."
   },
-  "summaryChartEmpty": {
-    "message": "Nenhuma tentativa registrada"
+  "summarySessionMeta": {
+    "message": "$1 min de $2 planejados · $3"
+  },
+  "summaryBadgeDone": {
+    "message": "completa"
+  },
+  "summaryBadgeCut": {
+    "message": "encerrada"
+  },
+  "statTodayFocus": {
+    "message": "foco hoje"
+  },
+  "statTodaySessions": {
+    "message": "sessões hoje"
+  },
+  "statTodayBlocked": {
+    "message": "barrados hoje"
+  },
+  "statStreak": {
+    "message": "sequência"
+  },
+  "statAllTime": {
+    "message": "foco total"
+  },
+  "unitMinutes": {
+    "message": "$1 min"
+  },
+  "unitHours": {
+    "message": "$1h"
+  },
+  "unitHoursMinutes": {
+    "message": "$HOURS$h$MINUTES$",
+    "placeholders": {
+      "HOURS": {
+        "content": "$1"
+      },
+      "MINUTES": {
+        "content": "$2"
+      }
+    }
+  },
+  "unitMinAbbrev": {
+    "message": "min"
+  },
+  "unitDaysAbbrev": {
+    "message": "d"
+  },
+  "countSessionsOne": {
+    "message": "1 sessão"
+  },
+  "countSessionsOther": {
+    "message": "$1 sessões"
+  },
+  "countBlockedOne": {
+    "message": "1 barrado"
+  },
+  "countBlockedOther": {
+    "message": "$1 barrados"
+  },
+  "popupHeroBlockedOne": {
+    "message": "1 desvio barrado até agora."
+  },
+  "popupHeroBlockedOther": {
+    "message": "$1 desvios barrados até agora."
+  },
+  "popupPresetAddedOne": {
+    "message": "1 site adicionado."
+  },
+  "popupPresetAddedOther": {
+    "message": "$1 sites adicionados."
+  },
+  "blockedPausedNote": {
+    "message": "sessão pausada. os sites voltam quando você retomar."
+  },
+  "supportButton": {
+    "message": "me paga um café"
+  },
+  "supportPitch": {
+    "message": "gostou? me paga um café."
+  },
+  "supportNote": {
+    "message": "sem rastreamento, sem plano pago, sem anúncio. é isso."
+  },
+  "supportOpenLivepix": {
+    "message": "abrir o LivePix"
+  },
+  "supportCopy": {
+    "message": "copiar"
+  },
+  "supportCopied": {
+    "message": "copiado"
+  },
+  "supportCopyFailed": {
+    "message": "não deu"
+  },
+  "supportCopyAria": {
+    "message": "copiar endereço $1"
+  },
+  "supportQrAlt": {
+    "message": "QR code para $1"
+  },
+  "summarySupportTitle": {
+    "message": "doações"
   }
 }

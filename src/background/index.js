@@ -1,149 +1,166 @@
-import { STORAGE_KEYS, storageGet } from '../utils/storage.js';
-import {
-  findBlockedMatch,
-  redirectBlockedTab
-} from '../core/blocking.js';
+import { FOCUS_ALARM_NAME } from '../utils/storage.js';
+import { buildBlockedPageUrl, findBlockedMatch } from '../core/blocking.js';
 import {
   clearCounters,
-  getFocusSnapshot,
+  getActiveSites,
+  getSnapshot,
   pauseFocus,
-  recordBlockedAttempt,
-  restoreFocusState,
+  recordAttempt,
+  restoreState,
   resumeFocus,
   startFocus,
-  stopFocus
+  stopFocus,
+  updateBadge
 } from '../core/timer.js';
 
-async function getCurrentState() {
-  return getFocusSnapshot();
-}
+/**
+ * chrome.tabs.onUpdated fires several times per navigation (loading, title,
+ * favicon, complete) and onActivated can fire right after. Without this guard
+ * a single visit to a blocked site is counted two or three times.
+ *
+ * Keyed by `tabId:site`; entries are short-lived and the map is trimmed so a
+ * long-running worker cannot grow it without bound.
+ */
+const recentRedirects = new Map();
+const REDIRECT_DEDUPE_MS = 2500;
 
-async function getActiveBlockedSites() {
-  const state = await storageGet([
-    STORAGE_KEYS.SITES,
-    STORAGE_KEYS.IS_FOCUS,
-    STORAGE_KEYS.IS_PAUSED
-  ]);
+function alreadyHandled(tabId, site) {
+  const key = `${tabId}:${site}`;
+  const now = Date.now();
+  const seenAt = recentRedirects.get(key);
 
-  if (!state[STORAGE_KEYS.IS_FOCUS] || state[STORAGE_KEYS.IS_PAUSED]) {
-    return [];
+  if (seenAt && now - seenAt < REDIRECT_DEDUPE_MS) {
+    return true;
   }
 
-  return state[STORAGE_KEYS.SITES] || [];
+  recentRedirects.set(key, now);
+
+  if (recentRedirects.size > 200) {
+    for (const [entryKey, ts] of recentRedirects) {
+      if (now - ts > REDIRECT_DEDUPE_MS) {
+        recentRedirects.delete(entryKey);
+      }
+    }
+  }
+
+  return false;
 }
 
-async function enforceBlockingForTab(tabId, rawUrl) {
+async function enforce(tabId, rawUrl) {
   if (typeof tabId !== 'number' || !rawUrl) {
     return;
   }
 
-  const blockedSites = await getActiveBlockedSites();
+  const sites = await getActiveSites();
 
-  if (!blockedSites.length) {
+  if (!sites.length) {
     return;
   }
 
-  const matchedSite = findBlockedMatch(rawUrl, blockedSites);
+  const site = findBlockedMatch(rawUrl, sites);
 
-  if (!matchedSite) {
+  if (!site || alreadyHandled(tabId, site)) {
     return;
   }
 
-  await redirectBlockedTab(tabId, matchedSite);
+  // Count first so the blocked page can show the tally without a round trip.
+  const counts = await recordAttempt(site);
+
+  try {
+    await chrome.tabs.update(tabId, {
+      url: buildBlockedPageUrl(site, counts)
+    });
+  } catch {
+    // Tab went away mid-navigation.
+  }
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const url = changeInfo.url || tab?.url;
 
-  if (!url) {
-    return;
+  if (url) {
+    void enforce(tabId, url);
   }
-
-  void enforceBlockingForTab(tabId, url);
 });
 
 chrome.tabs.onCreated.addListener(tab => {
-  void enforceBlockingForTab(tab?.id, tab?.pendingUrl || tab?.url);
+  void enforce(tab?.id, tab?.pendingUrl || tab?.url);
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   try {
     const tab = await chrome.tabs.get(tabId);
-    await enforceBlockingForTab(tabId, tab?.url || tab?.pendingUrl);
+    await enforce(tabId, tab?.url || tab?.pendingUrl);
   } catch {
-    return;
+    // Tab closed before we got to it.
+  }
+});
+
+chrome.tabs.onRemoved.addListener(tabId => {
+  for (const key of recentRedirects.keys()) {
+    if (key.startsWith(`${tabId}:`)) {
+      recentRedirects.delete(key);
+    }
   }
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  void restoreFocusState();
+  void restoreState();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void restoreFocusState();
+  void restoreState();
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name !== 'focusEnd') {
-    return;
+  if (alarm.name === FOCUS_ALARM_NAME) {
+    void stopFocus({ completed: true });
+  }
+});
+
+const handlers = {
+  startFocus: msg => startFocus(msg.minutes, msg.blockedSites),
+  stopFocus: () => stopFocus({ completed: false }),
+  pauseFocus: () => pauseFocus(),
+  resumeFocus: () => resumeFocus(),
+  clearCounters: () => clearCounters(),
+  getStatus: () => getSnapshot()
+};
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const handler = handlers[message?.action];
+
+  if (message?.action === 'closeThisTab') {
+    const tabId = sender?.tab?.id;
+
+    if (typeof tabId === 'number') {
+      void chrome.tabs.remove(tabId).then(
+        () => sendResponse({ ok: true }),
+        () => sendResponse({ ok: false })
+      );
+    } else {
+      sendResponse({ ok: false });
+    }
+
+    return true;
+  }
+
+  if (!handler) {
+    sendResponse({ ok: false, error: 'unknown-action' });
+    return false;
   }
 
   void (async () => {
-    const state = await storageGet([STORAGE_KEYS.IS_FOCUS, STORAGE_KEYS.IS_PAUSED]);
-
-    if (state[STORAGE_KEYS.IS_FOCUS] && !state[STORAGE_KEYS.IS_PAUSED]) {
-      await stopFocus();
-    }
-  })();
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  void (async () => {
-    switch (message?.action) {
-      case 'startFocus':
-        await startFocus(message.minutes, message.blockedSites);
-        sendResponse({ status: 'ok' });
-        break;
-      case 'stopFocus':
-        await stopFocus();
-        sendResponse({ status: 'ok' });
-        break;
-      case 'pauseFocus':
-        await pauseFocus();
-        sendResponse({ status: 'ok' });
-        break;
-      case 'resumeFocus':
-        await resumeFocus();
-        sendResponse({ status: 'ok' });
-        break;
-      case 'getStatus':
-        sendResponse(await getCurrentState());
-        break;
-      case 'clearCounters':
-        await clearCounters();
-        sendResponse({ status: 'ok' });
-        break;
-      case 'registerBlockedAttempt':
-        await recordBlockedAttempt(message.site);
-        sendResponse({ status: 'ok' });
-        break;
-      case 'closeThisTab': {
-        const tabIdToClose = sender?.tab?.id ?? message.tabId;
-
-        if (typeof tabIdToClose === 'number') {
-          await chrome.tabs.remove(tabIdToClose);
-          sendResponse({ status: 'closed', tabId: tabIdToClose });
-        } else {
-          sendResponse({ status: 'no-tab-id' });
-        }
-
-        break;
-      }
-      default:
-        sendResponse({ status: 'ignored' });
-        break;
+    try {
+      const result = await handler(message);
+      sendResponse(result === undefined ? { ok: true } : result);
+    } catch (error) {
+      sendResponse({ ok: false, error: String(error?.message || error) });
     }
   })();
 
   return true;
 });
+
+// The worker can be respawned by any event, not just startup.
+void updateBadge();

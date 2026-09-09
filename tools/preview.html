@@ -1,0 +1,244 @@
+<!doctype html>
+<!--
+  Local preview harness. Not shipped (tools/ is excluded from the zip).
+
+  Stubs the chrome.* APIs the UI touches, seeds a scenario into fake storage,
+  then loads the real page markup and the real module so what you see is the
+  actual production code, not a mockup of it.
+
+  Serve the project root with `npm run serve` (it sends no-store, so an edited
+  module is never mixed with a cached one) and open:
+    tools/preview.html?page=popup&scenario=idle
+    tools/preview.html?page=popup&scenario=running
+    tools/preview.html?page=popup&scenario=paused
+    tools/preview.html?page=blocked&scenario=first
+    tools/preview.html?page=blocked&scenario=repeat
+    tools/preview.html?page=blocked&scenario=over
+    tools/preview.html?page=summary
+
+  Append &locale=pt_BR or &locale=es to preview a translation.
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lock In — preview</title>
+  <style>
+    html, body { margin: 0; }
+    body[data-page='popup'] { width: 344px; }
+  </style>
+</head>
+<body>
+<script>
+const query = new URLSearchParams(location.search);
+const page = query.get('page') || 'popup';
+const scenario = query.get('scenario') || 'idle';
+const ROOT = '../';
+
+const now = Date.now();
+
+const SCENARIOS = {
+  idle: {
+    blockedSites: ['instagram.com', 'x.com', 'youtube.com', 'reddit.com'],
+    isFocusing: false,
+    lastUsedTime: 45
+  },
+  running: {
+    blockedSites: ['instagram.com', 'x.com', 'youtube.com'],
+    isFocusing: true,
+    isPaused: false,
+    focusStartTs: now - 16 * 60000,
+    focusEndTs: now + 9 * 60000 + 22000,
+    attemptCounters: { 'instagram.com': 5, 'x.com': 3, 'youtube.com': 1 },
+    lastUsedTime: 25
+  },
+  paused: {
+    blockedSites: ['instagram.com', 'x.com'],
+    isFocusing: true,
+    isPaused: true,
+    focusStartTs: now - 12 * 60000,
+    focusEndTs: now + 13 * 60000,
+    remainingMs: 13 * 60000 + 40000,
+    attemptCounters: { 'instagram.com': 2 },
+    lastUsedTime: 25
+  }
+};
+
+function seedDailyStats() {
+  const stats = {};
+  const shape = [0, 52, 95, 0, 130, 74, 25, 168, 40, 0, 88, 145, 60, 110];
+
+  shape.forEach((minutes, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (shape.length - 1 - index));
+    const key = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+
+    if (!minutes) return;
+
+    stats[key] = {
+      focusMs: minutes * 60000,
+      sessions: Math.max(1, Math.round(minutes / 45)),
+      attempts: Math.round(minutes / 9),
+      sites: { 'instagram.com': Math.round(minutes / 14), 'x.com': Math.round(minutes / 22) }
+    };
+  });
+
+  return stats;
+}
+
+function seedHistory() {
+  return [6, 5, 4, 3, 2, 1].map(daysAgo => {
+    const date = new Date(now - daysAgo * 86400000);
+    const planned = [25, 45, 90][daysAgo % 3];
+    const completed = daysAgo % 3 !== 1;
+
+    return {
+      date: date.toISOString(),
+      focusedMs: (completed ? planned : Math.round(planned * 0.4)) * 60000,
+      plannedMinutes: planned,
+      completed,
+      counters: { 'instagram.com': daysAgo, 'x.com': Math.max(0, daysAgo - 2) }
+    };
+  });
+}
+
+// The blocked page only makes sense over a live session, unless the scenario
+// deliberately asks for the "session already ended" state.
+const fallback = page === 'blocked' && scenario !== 'over' ? 'running' : 'idle';
+
+const LOCALE_ALIASES = { en: 'en', pt: 'pt_BR', pt_BR: 'pt_BR', 'pt-BR': 'pt_BR', es: 'es' };
+
+const store = {
+  ...(SCENARIOS[scenario] || SCENARIOS[fallback]),
+  sessionHistory: seedHistory(),
+  dailyStats: seedDailyStats()
+};
+
+// The pages read their language from storage now, same as in the extension.
+if (query.get('locale')) {
+  store.uiLocale = LOCALE_ALIASES[query.get('locale')] || 'en';
+}
+
+if (page === 'summary') {
+  store.attemptCounters = {
+    'instagram.com': 14,
+    'x.com': 9,
+    'youtube.com': 6,
+    'reddit.com': 4,
+    'news.ycombinator.com': 1
+  };
+}
+
+const changeListeners = [];
+
+window.chrome = {
+  // chrome.i18n is only used by the manifest now; the pages fetch _locales
+  // themselves so the language can be switched at runtime.
+  i18n: {
+    getMessage: () => '',
+    getUILanguage: () => 'en-US'
+  },
+  runtime: {
+    getURL: path => ROOT + path,
+    sendMessage: async message => {
+      if (message.action === 'getStatus') {
+        return { ...store, today: store.dailyStats[todayKey()] || { attempts: 0, focusMs: 0, sessions: 0, sites: {} } };
+      }
+      console.log('[preview] sendMessage', message);
+      return { ok: true };
+    },
+    lastError: null
+  },
+  storage: {
+    local: {
+      get: async keys => {
+        const list = Array.isArray(keys) ? keys : [keys];
+        const out = {};
+        for (const key of list) if (key in store) out[key] = store[key];
+        return out;
+      },
+      set: async values => {
+        Object.assign(store, values);
+        const changes = {};
+        for (const [key, value] of Object.entries(values)) changes[key] = { newValue: value };
+        changeListeners.forEach(fn => fn(changes, 'local'));
+      },
+      remove: async keys => {
+        for (const key of (Array.isArray(keys) ? keys : [keys])) delete store[key];
+      }
+    },
+    onChanged: { addListener: fn => changeListeners.push(fn) }
+  },
+  tabs: {
+    create: async info => console.log('[preview] tabs.create', info)
+  },
+  action: {
+    setBadgeText: async () => {},
+    setBadgeBackgroundColor: async () => {},
+    setBadgeTextColor: async () => {}
+  }
+};
+
+function todayKey() {
+  const date = new Date();
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-');
+}
+
+const BLOCKED_PARAMS = {
+  first: { site: 'instagram.com', n: '1', today: '1' },
+  repeat: { site: 'instagram.com', n: '3', today: '4' }
+};
+
+async function boot() {
+  const html = await fetch(`${ROOT}${page}.html`).then(response => response.text());
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  // Cache-bust so an edit to the CSS shows up on reload instead of being served
+  // from the browser cache.
+  const bust = `?v=${Date.now()}`;
+
+  for (const link of doc.querySelectorAll('link[rel="stylesheet"]')) {
+    const clone = document.createElement('link');
+    clone.rel = 'stylesheet';
+    clone.href = ROOT + link.getAttribute('href') + bust;
+    document.head.append(clone);
+  }
+
+  await Promise.all(
+    [...document.querySelectorAll('link[rel="stylesheet"]')].map(
+      link => new Promise(resolve => {
+        if (link.sheet) return resolve();
+        link.addEventListener('load', resolve, { once: true });
+        link.addEventListener('error', resolve, { once: true });
+      })
+    )
+  );
+
+  document.body.dataset.page = page;
+  document.body.className = doc.body.className;
+  document.body.insertAdjacentHTML('afterbegin', doc.body.innerHTML.replace(/<script[\s\S]*?<\/script>/g, ''));
+
+  if (page === 'blocked') {
+    // blocked.js reads its tally from the query string, so rewrite it first.
+    const params = new URLSearchParams(BLOCKED_PARAMS[scenario] || BLOCKED_PARAMS.repeat);
+    history.replaceState(null, '', `?${params}`);
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 60));
+  await import(`${ROOT}${page}.js${bust}`);
+  console.log(`[preview] ${page}/${scenario} booted`);
+}
+
+boot().catch(error => {
+  document.body.innerHTML = `<pre style="color:red;padding:16px;white-space:pre-wrap">${error.stack}</pre>`;
+});
+</script>
+</body>
+</html>
