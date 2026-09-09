@@ -1,0 +1,457 @@
+<!doctype html>
+<!--
+  Composes the Chrome Web Store screenshots at 1280x800. Not shipped.
+
+  It mounts the real pages through harness.js and rasterises the result, so the
+  screenshots cannot drift from the interface. Nothing is drawn by hand.
+
+  Serve with `npm run serve` and open tools/make-shots.html?shot=idle
+  (shots: idle, running, blocked, summary). The composed stage renders on the
+  page for eyeballing, and window.SHOT resolves to the PNG data URL.
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lock In — store shots</title>
+  <style>
+    /*
+     * `html > body`, never a bare `body`: the mounted page is itself a nested
+     * body element, and a bare selector would repaint it with the workbench
+     * colour instead of its own.
+     */
+    html, html > body { margin: 0; background: #55524a; }
+
+    /* Exactly the size the store wants. */
+    #stage {
+      position: relative;
+      width: 1280px;
+      height: 800px;
+      overflow: hidden;
+      background: #f2ede1;
+      font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+      color: #0a0a0a;
+    }
+
+    #caption {
+      position: absolute;
+      top: 74px;
+      left: 86px;
+      width: 460px;
+      margin: 0;
+      font-size: 46px;
+      font-weight: 700;
+      line-height: 1.04;
+      letter-spacing: -0.035em;
+      text-transform: lowercase;
+      white-space: pre-line;
+    }
+
+    #rule {
+      position: absolute;
+      top: 46px;
+      left: 86px;
+      width: 148px;
+      height: 8px;
+      background: #ccff00;
+      border: 2px solid #0a0a0a;
+    }
+
+    #wordmark {
+      position: absolute;
+      bottom: 62px;
+      left: 86px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    #wordmark::before {
+      content: '';
+      width: 19px;
+      height: 19px;
+      background: #ccff00;
+      border: 3px solid #0a0a0a;
+    }
+
+    /* The mounted page sits inside a clip so a tall page can be cropped. */
+    #frame {
+      position: absolute;
+      overflow: hidden;
+    }
+
+    /*
+     * #mount is a real <body> element, nested. The pages hang genuine styling
+     * off `body` - the block page gets its whole pink field and its hazard
+     * stripes from `body` and `body::before` - and a nested body picks all of
+     * that up for free. Rewriting those selectors in the CSS text instead was
+     * a rabbit hole: it broke on rules that follow a comment, and on the
+     * containing block for `position: fixed`.
+     */
+    #mount {
+      transform-origin: top left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* The document's own body picks up the mounted page's rules as well. Undo
+     * the visible part so the workbench around the stage stays neutral. */
+    html > body {
+      min-height: 0 !important;
+      display: block !important;
+    }
+
+    html > body::before,
+    html > body::after {
+      content: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="rule"></div>
+    <p id="caption"></p>
+    <div id="wordmark">Lock In</div>
+    <div id="frame"></div>
+  </div>
+
+<script type="module">
+import { installChromeStub, mountPage } from './harness.js';
+
+const ROOT = '../';
+
+/*
+ * Per shot: which page and scenario to mount, how big a window of it to show,
+ * where to put that window, and how much to scale it. The popup is scaled up
+ * because store thumbnails are shown small and 344px of real estate is
+ * unreadable at that size.
+ */
+const SHOTS = {
+  idle: {
+    page: 'popup',
+    scenario: 'idle',
+    caption: 'pick what stays out.\npick how long.',
+    mountWidth: 344,
+    scale: 1.5,
+    frame: { left: 698, top: 52, width: 522, height: 706 }
+  },
+  running: {
+    page: 'popup',
+    scenario: 'running',
+    caption: 'the clock runs.\nthe sites stay shut.',
+    mountWidth: 344,
+    scale: 1.6,
+    frame: { left: 664, top: 150, width: 556, height: 540 }
+  },
+  blocked: {
+    page: 'blocked',
+    scenario: 'repeat',
+    caption: 'try to sneak back\nand it says no.',
+    mountWidth: 700,
+    mountHeight: 640,
+    scale: 0.85,
+    frame: { left: 634, top: 128, width: 596, height: 546 }
+  },
+  summary: {
+    page: 'summary',
+    scenario: 'idle',
+    caption: 'every detour,\ncounted.',
+    mountWidth: 900,
+    mountHeight: 980,
+    scale: 0.72,
+    frame: { left: 586, top: 74, width: 650, height: 660 }
+  }
+};
+
+/*
+ * The frame clips the mount, so anything narrower than the scaled page silently
+ * cuts the interface off at the edge. Caught once already.
+ */
+for (const [name, config] of Object.entries(SHOTS)) {
+  const scaledWidth = config.mountWidth * config.scale;
+
+  if (config.frame.width < scaledWidth - 1) {
+    throw new Error(
+      `shot "${name}": frame is ${config.frame.width}px but the scaled page is `
+      + `${Math.round(scaledWidth)}px, so it would be clipped`
+    );
+  }
+
+  if (config.frame.left + scaledWidth > 1280) {
+    throw new Error(`shot "${name}": the page runs past the right edge`);
+  }
+}
+
+const key = new URLSearchParams(location.search).get('shot') || 'idle';
+const shot = SHOTS[key];
+
+if (!shot) {
+  throw new Error(`unknown shot "${key}" — try ${Object.keys(SHOTS).join(', ')}`);
+}
+
+/* ── font inlining ── */
+
+/*
+ * foreignObject rasterisation cannot reach out for a font file: the SVG is
+ * loaded as an image, with no access to anything but data: URIs. Without this
+ * the whole screenshot silently falls back to a system font.
+ */
+async function asDataUri(path) {
+  const buffer = await fetch(ROOT + path).then(r => r.arrayBuffer());
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return `data:font/woff2;base64,${btoa(binary)}`;
+}
+
+async function collectCss(hrefs) {
+  const [latin, latinExt] = await Promise.all([
+    asDataUri('assets/fonts/space-grotesk-latin.woff2'),
+    asDataUri('assets/fonts/space-grotesk-latin-ext.woff2')
+  ]);
+
+  const sheets = await Promise.all(
+    hrefs.map(href => fetch(ROOT + href).then(r => r.text()))
+  );
+
+  // The composition rules (#stage, #frame, #mount) live in this page's own
+  // inline <style>, not in a linked sheet. Leaving them out yields a
+  // screenshot of unpositioned content at its natural size.
+  const inline = [...document.querySelectorAll('style')]
+    .map(node => node.textContent)
+    .join('\n');
+
+  /*
+   * The base font hangs off `body`, and the outermost wrapper inside a
+   * foreignObject is a bare div. Without this the caption and wordmark render
+   * in the document default, which is a serif.
+   */
+  const rootReset = `
+    .shot-root {
+      font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #0a0a0a;
+      -webkit-font-smoothing: antialiased;
+    }
+  `;
+
+  /*
+   * `position: fixed` resolves against the viewport, and inside the rasterised
+   * SVG the viewport is the whole 1280x800 canvas — the block page's hazard
+   * stripes flooded the entire screenshot. Absolute keeps them inside the
+   * mount, which is a containing block by virtue of its transform.
+   */
+  const pages = sheets
+    .join('\n')
+    .replace(/position:\s*fixed/g, 'position: absolute');
+
+  return [pages, inline, rootReset]
+    .join('\n')
+    .replace("url('fonts/space-grotesk-latin.woff2')", `url('${latin}')`)
+    .replace("url('fonts/space-grotesk-latin-ext.woff2')", `url('${latinExt}')`);
+}
+
+/* ── rasterise ── */
+
+async function rasterise(node, width, height, css) {
+  // XMLSerializer, not outerHTML: the SVG is parsed as XML, where a bare
+  // boolean attribute like `hidden` and unclosed void tags are both fatal.
+  const markup = new XMLSerializer().serializeToString(node);
+
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`,
+    '<foreignObject width="100%" height="100%">',
+    '<div xmlns="http://www.w3.org/1999/xhtml" class="shot-root">',
+    // CDATA rather than escaping: the stylesheet is a text node in an XML
+    // document, where a bare `<` is fatal. One CSS comment mentioning a tag
+    // name was enough to break the whole rasterisation with an opaque
+    // "source image cannot be decoded". `]]>` is the one sequence CDATA
+    // cannot carry, so it is broken up.
+    `<style><![CDATA[${css.split(']]>').join(']] >')}]]></style>`,
+    markup,
+    '</div></foreignObject></svg>'
+  ].join('');
+
+  const image = new Image();
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await image.decode();
+
+  // alpha: false so Chrome can emit an opaque PNG, which is the format the
+  // store documents.
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#f2ede1';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, 0, 0);
+
+  return canvas;
+}
+
+/* \u2500\u2500 png, without an alpha channel \u2500\u2500 */
+
+/*
+ * canvas.toDataURL always emits RGBA, and the store asks for 24-bit PNG with
+ * no alpha channel. Encoding it here costs about fifty lines and removes any
+ * question of the upload being refused. CompressionStream('deflate') produces
+ * exactly the zlib wrapper an IDAT chunk wants.
+ */
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+
+  for (let i = 0; i < 256; i += 1) {
+    let value = i;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[i] = value >>> 0;
+  }
+
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function chunk(type, data) {
+  const out = new Uint8Array(data.length + 12);
+  const view = new DataView(out.buffer);
+
+  view.setUint32(0, data.length);
+  for (let i = 0; i < 4; i += 1) out[4 + i] = type.charCodeAt(i);
+  out.set(data, 8);
+  view.setUint32(out.length - 4, crc32(out.subarray(4, out.length - 4)));
+
+  return out;
+}
+
+async function encodePngNoAlpha(canvas) {
+  const { width, height } = canvas;
+  const { data } = canvas.getContext('2d').getImageData(0, 0, width, height);
+
+  // Each scanline carries a leading filter byte; 0 means "no filtering".
+  const raw = new Uint8Array((width * 3 + 1) * height);
+  let at = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    raw[at] = 0;
+    at += 1;
+
+    for (let x = 0; x < width; x += 1) {
+      const from = (y * width + x) * 4;
+      raw[at] = data[from];
+      raw[at + 1] = data[from + 1];
+      raw[at + 2] = data[from + 2];
+      at += 3;
+    }
+  }
+
+  const deflated = new Uint8Array(
+    await new Response(
+      new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate'))
+    ).arrayBuffer()
+  );
+
+  const header = new Uint8Array(13);
+  const headerView = new DataView(header.buffer);
+  headerView.setUint32(0, width);
+  headerView.setUint32(4, height);
+  header[8] = 8; // bit depth
+  header[9] = 2; // colour type 2: RGB, no alpha
+  header[10] = 0;
+  header[11] = 0;
+  header[12] = 0;
+
+  const parts = [
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflated),
+    chunk('IEND', new Uint8Array(0))
+  ];
+
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const png = new Uint8Array(total);
+  let offset = 0;
+
+  for (const part of parts) {
+    png.set(part, offset);
+    offset += part.length;
+  }
+
+  return png;
+}
+
+/* ── build ── */
+
+installChromeStub({ page: shot.page, scenario: shot.scenario });
+
+document.getElementById('caption').textContent = shot.caption;
+
+const frame = document.getElementById('frame');
+Object.assign(frame.style, {
+  left: `${shot.frame.left}px`,
+  top: `${shot.frame.top}px`,
+  width: `${shot.frame.width}px`,
+  height: `${shot.frame.height}px`
+});
+
+// A real <body>, so the mounted page's own `body` rules apply to it.
+const mount = document.createElement('body');
+mount.id = 'mount';
+frame.append(mount);
+
+mount.style.width = `${shot.mountWidth}px`;
+mount.style.transform = `scale(${shot.scale})`;
+
+// A page with `min-height: 100vh` would otherwise be as tall as the real
+// viewport, which throws off where its centred content lands.
+if (shot.mountHeight) {
+  mount.style.height = `${shot.mountHeight}px`;
+}
+
+window.SHOT = (async () => {
+  await mountPage({ page: shot.page, scenario: shot.scenario, target: mount });
+
+  const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')]
+    .map(link => link.getAttribute('href').replace(ROOT, '').split('?')[0]);
+
+  const css = await collectCss(hrefs);
+  const stage = document.getElementById('stage');
+
+  const canvas = await rasterise(stage, 1280, 800, css);
+  const bytes = await encodePngNoAlpha(canvas);
+
+  return { bytes, url: URL.createObjectURL(new Blob([bytes], { type: 'image/png' })) };
+})();
+
+window.SHOT.then(async ({ bytes }) => {
+  console.log(`[shots] ${key} ready, ${(bytes.length / 1024).toFixed(1)} KB`);
+
+  // With ?save the dev server writes it to store/, so a regeneration never has
+  // to shuttle a few hundred KB of base64 back out through the page.
+  if (new URLSearchParams(location.search).has('save')) {
+    const response = await fetch(`/__write?name=lock-in-${key}.png`, {
+      method: 'POST',
+      body: bytes
+    });
+
+    window.SAVED = response.ok ? `store/lock-in-${key}.png` : `failed: ${response.status}`;
+    console.log(`[shots] ${window.SAVED}`);
+  }
+}).catch(error => console.error('[shots] failed', error));
+</script>
+</body>
+</html>

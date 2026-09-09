@@ -7,7 +7,7 @@
  * code rather than a stale file. Cache-busting query strings do not help,
  * because they cannot reach the imports inside an ES module.
  */
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,8 +26,46 @@ const TYPES = {
   '.woff2': 'font/woff2'
 };
 
+/**
+ * Accepts a rasterised screenshot from tools/make-shots.html and writes it
+ * under store/. Sending the image back through the page would mean shuttling
+ * a few hundred KB of base64 around for every regeneration.
+ *
+ * The name is whitelisted rather than sanitised: only a lowercase basename with
+ * a .png suffix is accepted, so nothing can escape the directory.
+ */
+function handleWrite(request, response, url) {
+  const name = url.searchParams.get('name') || '';
+
+  if (!/^[a-z0-9-]{1,40}\.png$/.test(name)) {
+    response.writeHead(400, { 'content-type': 'text/plain' }).end('bad name');
+    return;
+  }
+
+  const chunks = [];
+
+  request.on('data', chunk => chunks.push(chunk));
+  request.on('end', () => {
+    const dir = join(root, 'store');
+    mkdirSync(dir, { recursive: true });
+
+    const bytes = Buffer.concat(chunks);
+    writeFileSync(join(dir, name), bytes);
+
+    console.log(`  wrote store/${name}  ${(bytes.length / 1024).toFixed(1)} KB`);
+    response.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+  });
+}
+
 const server = createServer((request, response) => {
-  const requested = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+  const url = new URL(request.url, 'http://localhost');
+
+  if (request.method === 'POST' && url.pathname === '/__write') {
+    handleWrite(request, response, url);
+    return;
+  }
+
+  const requested = decodeURIComponent(url.pathname);
   const target = resolve(root, `.${normalize(requested)}`);
 
   // Never serve outside the project, whatever the path tries.
