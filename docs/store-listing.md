@@ -27,9 +27,15 @@ so `rewrite-v1` must be merged first.
 | Marquee promo tile, 1400x560 | `store/lock-in-tile-marquee.png` |
 | Promo video | none |
 
-Upload the screenshots under **global** assets, not localized: the interface in
-them is English, but they are the same four images for every listing language,
-and a localized slot has to be filled again per language.
+Upload the screenshots under **localized** assets, in the current editing
+language. That is the slot the dashboard requires; the global one can stay
+empty, and is meant for images with no text in them.
+
+The screenshots do have text — the interface in them is English — so the
+English listing is where they belong. Adding a Portuguese or Spanish listing
+later means giving each one its own screenshots: either these same four, or
+translated ones, which the pipeline can produce because the harness takes
+`&locale=pt_BR` and `&locale=es`.
 
 The two promo tiles are optional — they are what Google uses if it ever
 features the extension. There is no downside to having them.
