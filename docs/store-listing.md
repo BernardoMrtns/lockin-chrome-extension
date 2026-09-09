@@ -7,6 +7,11 @@ and `_locales/`, so it localizes them on its own.
 Before submitting, the two URLs below have to resolve — they point at `main`,
 so `rewrite-v1` must be merged first.
 
+Two things live outside this page and block publishing on their own, in the
+dashboard's **Settings**, not on the item: a publisher contact email, and
+clicking through the verification link it sends. Neither appears on the item
+form, so the item can look complete and still refuse to publish.
+
 ### Product details
 
 | Field | Value |
@@ -79,10 +84,13 @@ Keep it to one sentence. Reviewers reject a "single purpose" that lists two.
 > No. The extension executes no remote code. Every script, style, font, and
 > image is bundled in the package, and it makes no network requests.
 
-`alarms` needs no justification form, but if asked:
+**alarms**
 
-> Ends the focus session at the scheduled time even when the service worker has
-> been unloaded by the browser in the meantime.
+> Ends the focus session at the scheduled time even when the browser has
+> unloaded the extension's service worker in the meantime. Without it a session
+> would keep running past its end whenever Chrome suspended the worker.
+
+Every declared permission gets its own required field — `alarms` included.
 
 ## Data usage
 
