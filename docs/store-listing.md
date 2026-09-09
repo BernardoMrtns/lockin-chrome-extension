@@ -7,15 +7,43 @@ and `_locales/`, so it localizes them on its own.
 Before submitting, the two URLs below have to resolve — they point at `main`,
 so `rewrite-v1` must be merged first.
 
+### Product details
+
 | Field | Value |
 | --- | --- |
+| Package title | comes from `_locales`; leave it |
+| Package summary | comes from `_locales`; leave it |
+| Description | the detailed description below |
 | Category | Productivity |
-| Language | English (add Portuguese (Brazil) and Spanish as extra listings) |
-| Homepage URL | comes from `homepage_url` in the manifest |
+| Editing language | English (en) is the default; add Portuguese (Brazil) and Spanish as extra listings for their descriptions) |
+
+### Graphics
+
+| Field | File |
+| --- | --- |
+| Store icon, 128x128 | `icons/icon-128.png` — already the right size, fills the canvas, corners transparent |
+| Screenshots, 1280x800 | `store/lock-in-idle.png`, `-running.png`, `-blocked.png`, `-summary.png`, in that order |
+| Small promo tile, 440x280 | `store/lock-in-tile-small.png` |
+| Marquee promo tile, 1400x560 | `store/lock-in-tile-marquee.png` |
+| Promo video | none |
+
+Upload the screenshots under **global** assets, not localized: the interface in
+them is English, but they are the same four images for every listing language,
+and a localized slot has to be filled again per language.
+
+The two promo tiles are optional — they are what Google uses if it ever
+features the extension. There is no downside to having them.
+
+### Extra fields
+
+| Field | Value |
+| --- | --- |
+| Official URL | none — that field only accepts a domain verified in Google Search Console |
+| Homepage URL | `https://github.com/BernardoMrtns/lockin-chrome-extension` |
 | Support URL | `https://github.com/BernardoMrtns/lockin-chrome-extension/issues` |
-| Privacy policy URL | `https://github.com/BernardoMrtns/lockin-chrome-extension/blob/main/PRIVACY.md` |
 | Mature content | No |
-| Screenshots | `store/lock-in-idle.png`, `-running.png`, `-blocked.png`, `-summary.png`, in that order |
+| Item support | on — the support URL goes to the issue tracker, which is the right place for it |
+| Privacy policy URL (Privacy tab) | `https://github.com/BernardoMrtns/lockin-chrome-extension/blob/main/PRIVACY.md` |
 
 ## Single purpose
 

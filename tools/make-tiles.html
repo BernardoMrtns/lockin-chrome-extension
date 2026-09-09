@@ -1,0 +1,307 @@
+<!doctype html>
+<!--
+  Composes the two Chrome Web Store promo tiles. Not shipped.
+
+  The small tile (440x280) is what the store shows in search results and in
+  category listings, so it has to survive being drawn at a fraction of its
+  size: the wordmark is the only thing sized to be read there. The marquee
+  (1400x560) is only used if Google features the extension, and has room for
+  the real popup.
+
+  Serve with `npm run serve` and open tools/make-tiles.html?tile=small
+  (tiles: small, marquee). Add &save=1 to write it to store/.
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lock In — promo tiles</title>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <style>
+    /*
+     * `html > body`, never a bare `body`: the marquee mounts the popup as a
+     * nested body element, and a bare selector would repaint it with the
+     * workbench colour instead of its own.
+     */
+    html, html > body { margin: 0; background: #55524a; }
+
+    html > body { min-height: 0 !important; display: block !important; }
+    html > body::before, html > body::after { content: none !important; }
+
+    #tile {
+      position: relative;
+      overflow: hidden;
+      background: #f2ede1;
+      font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+      color: #0a0a0a;
+    }
+
+    #rule {
+      position: absolute;
+      background: #ccff00;
+      border: 2px solid #0a0a0a;
+    }
+
+    #name {
+      position: absolute;
+      margin: 0;
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: -0.045em;
+      text-transform: uppercase;
+    }
+
+    #line {
+      position: absolute;
+      margin: 0;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      text-transform: lowercase;
+      white-space: pre-line;
+    }
+
+    /* The mark, at a size where its shape is legible rather than decorative. */
+    #mark {
+      position: absolute;
+      display: block;
+    }
+
+    /* The marquee mounts the real popup; the small tile has no room for it. */
+    #frame {
+      position: absolute;
+      overflow: hidden;
+    }
+
+    #mount {
+      transform-origin: top left;
+      position: relative;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div id="tile">
+    <div id="rule"></div>
+    <h1 id="name">Lock In</h1>
+    <p id="line"></p>
+    <img id="mark" alt="" />
+    <div id="frame"></div>
+  </div>
+
+<script type="module">
+import { installChromeStub, mountPage } from './harness.js';
+import {
+  collectCss,
+  encodePngNoAlpha,
+  linkedStylesheets,
+  rasterise,
+  save
+} from './raster.js';
+
+const ROOT = '../';
+
+/*
+ * The two sizes the dashboard accepts, verbatim. Geometry is absolute rather
+ * than proportional: the small tile is not the marquee shrunk down — at 440px
+ * a scaled-down marquee would put the wordmark below the size where it can be
+ * read in a search result, which is the tile's only job.
+ */
+const TILES = {
+  small: {
+    width: 440,
+    height: 280,
+    // Centred vertically rather than hung off the top: at 440x280 the tile is
+    // nearly square, and a top-aligned block leaves a third of it visibly dead.
+    rule: { left: 34, top: 60, width: 78, height: 7 },
+    mark: { left: 34, top: 86, size: 54 },
+    name: { left: 104, top: 84, size: 56 },
+    line: { left: 34, top: 162, width: 372, size: 22 },
+    text: 'blocks what derails you.\nand counts every attempt.'
+  },
+  marquee: {
+    width: 1400,
+    height: 560,
+    rule: { left: 96, top: 96, width: 148, height: 8 },
+    mark: { left: 96, top: 142, size: 84 },
+    name: { left: 206, top: 132, size: 108 },
+    line: { left: 96, top: 306, width: 620, size: 38 },
+    text: 'blocks what derails you.\nand counts every\ntime you sneak back.',
+    mount: {
+      page: 'popup',
+      scenario: 'running',
+      mountWidth: 344,
+      /*
+       * 1.05, not more. The popup is 344x484, and the frame clips: at 1.28 it
+       * came to 620px tall in a 560px tile and the site list was sliced through
+       * the middle, which reads as a mistake rather than a crop.
+       */
+      scale: 1.05,
+      frame: { left: 936, top: 26, width: 364, height: 510 }
+    }
+  }
+};
+
+/*
+ * The tile clips, so anything that overflows is cut off with no error, and the
+ * mark sits right next to the wordmark where a size change would silently
+ * overlap it. Both are checked instead of eyeballed.
+ */
+for (const [name, config] of Object.entries(TILES)) {
+  const edges = [
+    ['rule', config.rule.left + config.rule.width, config.rule.top + config.rule.height],
+    ['mark', config.mark.left + config.mark.size, config.mark.top + config.mark.size],
+    ['line', config.line.left + config.line.width, config.line.top + config.line.size]
+  ];
+
+  if (config.mark.left + config.mark.size > config.name.left) {
+    throw new Error(`tile "${name}": the mark runs into the wordmark`);
+  }
+
+  if (config.mount) {
+    const { frame, mountWidth, scale } = config.mount;
+
+    // The popup's natural size, measured. Scaling either dimension past the
+    // frame crops the interface.
+    const natural = { width: 344, height: 484 };
+
+    if (frame.width < mountWidth * scale - 1) {
+      throw new Error(`tile "${name}": the frame would clip the popup horizontally`);
+    }
+
+    if (frame.height < natural.height * scale - 1) {
+      throw new Error(
+        `tile "${name}": the popup is ${Math.round(natural.height * scale)}px tall at `
+        + `scale ${scale} but the frame is ${frame.height}px, so it would be cut off`
+      );
+    }
+
+    edges.push(['popup', frame.left + frame.width, frame.top + frame.height]);
+  }
+
+  for (const [what, right, bottom] of edges) {
+    if (right > config.width || bottom > config.height) {
+      throw new Error(
+        `tile "${name}": ${what} ends at ${Math.round(right)}x${Math.round(bottom)}, `
+        + `outside the ${config.width}x${config.height} canvas`
+      );
+    }
+  }
+}
+
+const params = new URLSearchParams(location.search);
+const key = params.get('tile') || 'small';
+const shouldSave = params.has('save');
+const tile = TILES[key];
+
+if (!tile) {
+  throw new Error(`unknown tile "${key}" — try ${Object.keys(TILES).join(', ')}`);
+}
+
+/* ── compose ── */
+
+const place = (id, styles) => Object.assign(document.getElementById(id).style, styles);
+const px = value => `${value}px`;
+
+Object.assign(document.getElementById('tile').style, {
+  width: px(tile.width),
+  height: px(tile.height)
+});
+
+place('rule', {
+  left: px(tile.rule.left),
+  top: px(tile.rule.top),
+  width: px(tile.rule.width),
+  height: px(tile.rule.height)
+});
+
+place('name', {
+  left: px(tile.name.left),
+  top: px(tile.name.top),
+  fontSize: px(tile.name.size)
+});
+
+place('line', {
+  left: px(tile.line.left),
+  top: px(tile.line.top),
+  width: px(tile.line.width),
+  fontSize: px(tile.line.size)
+});
+
+document.getElementById('line').textContent = tile.text;
+
+place('mark', {
+  left: px(tile.mark.left),
+  top: px(tile.mark.top),
+  width: px(tile.mark.size),
+  height: px(tile.mark.size)
+});
+
+/*
+ * The mark has to be a data: URI. A foreignObject is rasterised from an SVG
+ * loaded as an image, which cannot reach out for a file — an <img src="..">
+ * would simply render as nothing, with no error at all.
+ */
+async function inlineIcon(path) {
+  const bytes = new Uint8Array(await fetch(ROOT + path).then(r => r.arrayBuffer()));
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
+/* ── build ── */
+
+const mountConfig = tile.mount;
+
+if (mountConfig) {
+  installChromeStub({ page: mountConfig.page, scenario: mountConfig.scenario });
+}
+
+window.TILE = (async () => {
+  document.getElementById('mark').src = await inlineIcon('icons/icon-128.png');
+
+  if (mountConfig) {
+    const frame = document.getElementById('frame');
+
+    Object.assign(frame.style, {
+      left: px(mountConfig.frame.left),
+      top: px(mountConfig.frame.top),
+      width: px(mountConfig.frame.width),
+      height: px(mountConfig.frame.height)
+    });
+
+    // A real <body>, so the popup's own `body` rules apply to it.
+    const mount = document.createElement('body');
+    mount.id = 'mount';
+    mount.style.width = px(mountConfig.mountWidth);
+    mount.style.transform = `scale(${mountConfig.scale})`;
+    frame.append(mount);
+
+    await mountPage({ page: mountConfig.page, scenario: mountConfig.scenario, target: mount });
+  }
+
+  const css = await collectCss(ROOT, linkedStylesheets(ROOT));
+  const canvas = await rasterise(document.getElementById('tile'), tile.width, tile.height, css);
+  const bytes = await encodePngNoAlpha(canvas);
+
+  return { bytes, url: URL.createObjectURL(new Blob([bytes], { type: 'image/png' })) };
+})();
+
+/*
+ * The whole chain, not just the render: `window.TILE` resolves as soon as the
+ * bytes exist, while saving them is another round trip. Awaiting DONE is what
+ * tells a caller the file is actually on disk — reading window.SAVED after
+ * awaiting TILE alone is a race, and it lost on the largest image.
+ */
+window.DONE = window.TILE.then(async ({ bytes }) => {
+  console.log(`[tiles] ${key} ready, ${(bytes.length / 1024).toFixed(1)} KB`);
+
+  if (shouldSave) {
+    window.SAVED = await save(`lock-in-tile-${key}.png`, bytes);
+    console.log(`[tiles] ${window.SAVED}`);
+  }
+}).catch(error => console.error('[tiles] failed', error));
+</script>
+</body>
+</html>
