@@ -75,7 +75,11 @@
     "message": "blocked this session"
   },
   "popupSummary": {
-    "message": "see the numbers"
+    "message": "the numbers"
+  },
+  "popupRepo": {
+    "message": "Source code",
+    "description": "Tooltip and accessible name for the icon button that opens the source repository."
   },
   "popupHeroClean": {
     "message": "no detours yet. impressive."

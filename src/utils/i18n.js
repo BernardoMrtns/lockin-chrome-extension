@@ -128,7 +128,13 @@ export function localeTag() {
   return active.tag;
 }
 
-/** Fills every [data-i18n] and [data-i18n-placeholder] node. */
+/**
+ * Fills every [data-i18n], [data-i18n-placeholder] and [data-i18n-label] node.
+ *
+ * The last one is for controls with no text of their own: it sets the tooltip
+ * and the accessible name together, which for an icon-only button are the same
+ * sentence and must not be allowed to drift apart.
+ */
 export function applyStaticText(root = document) {
   for (const node of root.querySelectorAll('[data-i18n]')) {
     node.textContent = t(node.dataset.i18n);
@@ -136,6 +142,12 @@ export function applyStaticText(root = document) {
 
   for (const node of root.querySelectorAll('[data-i18n-placeholder]')) {
     node.placeholder = t(node.dataset.i18nPlaceholder);
+  }
+
+  for (const node of root.querySelectorAll('[data-i18n-label]')) {
+    const label = t(node.dataset.i18nLabel);
+    node.title = label;
+    node.setAttribute('aria-label', label);
   }
 }
 

@@ -43,6 +43,41 @@ body {
   white-space: nowrap;
 }
 
+/*
+ * Pushed to the far edge rather than left tight against the donate button: the
+ * footer is 344px wide and the two labelled controls do not fill it, so a
+ * third button parked mid-row leaves a gap that reads as a mistake. At the
+ * edge it anchors the row instead.
+ */
+.bar__links .btn--icon {
+  margin-left: auto;
+}
+
+/*
+ * One type size for the whole row. Three controls share 316px, and in
+ * Portuguese they came to 332 — the icon button dropped onto a line of its
+ * own. Matching the quiet link to the small buttons' 11px and trimming the
+ * donate button's tracking and padding brings the row back under the width in
+ * all three shipped languages, and it reads as one row rather than two sizes
+ * side by side.
+ *
+ * flex-wrap stays on as the safety net: a longer translation should stack,
+ * never overflow.
+ */
+.bar--foot .btn {
+  font-size: 11px;
+}
+
+.bar--foot .btn--quiet {
+  padding: 4px 6px;
+}
+
+.bar--foot .btn--donate {
+  padding-left: 10px;
+  padding-right: 10px;
+  letter-spacing: 0.04em;
+}
+
 /* The support panel replaces the footer's own top rule with its own. */
 .support.view {
   padding-top: 14px;

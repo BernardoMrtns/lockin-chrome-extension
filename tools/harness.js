@@ -51,6 +51,18 @@ export const SCENARIOS = {
   }
 };
 
+/*
+ * The real manifest, loaded lazily. The stub is installed synchronously but
+ * the pages only read it after mountPage has awaited this, so the preview sees
+ * the same homepage_url and version the extension does instead of a copy that
+ * can go stale.
+ */
+const manifest = {};
+
+async function loadManifest() {
+  Object.assign(manifest, await fetch(`${ROOT}manifest.json`).then(r => r.json()));
+}
+
 const BLOCKED_PARAMS = {
   first: { site: 'instagram.com', n: '1', today: '1' },
   repeat: { site: 'instagram.com', n: '3', today: '4' }
@@ -146,6 +158,9 @@ export function installChromeStub({ page, scenario, locale } = {}) {
     },
     runtime: {
       getURL: path => ROOT + path,
+      // Filled from the real manifest.json before the page module is imported,
+      // so the preview reads the same values the extension does.
+      getManifest: () => manifest,
       sendMessage: async message => {
         if (message.action === 'getStatus') {
           return {
@@ -243,6 +258,7 @@ export async function mountPage({ page, scenario, target = document.body }) {
 
   // Let the stylesheets settle before the module measures anything.
   await new Promise(resolve => setTimeout(resolve, 60));
+  await loadManifest();
   await import(`${ROOT}${page}.js${bust}`);
 
   // And let the module's own async boot (i18n fetch, first render) finish.

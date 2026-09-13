@@ -270,7 +270,7 @@ for (const file of [...jsFiles, ...htmlFiles]) {
     usedKeys.add(match[1]);
   }
 
-  for (const match of source.matchAll(/data-i18n(?:-placeholder)?="([A-Za-z0-9_]+)"/g)) {
+  for (const match of source.matchAll(/data-i18n(?:-placeholder|-label)?="([A-Za-z0-9_]+)"/g)) {
     usedKeys.add(match[1]);
   }
 

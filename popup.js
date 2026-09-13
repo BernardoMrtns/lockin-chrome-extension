@@ -411,6 +411,22 @@ function wire() {
     void chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
   });
 
+  /*
+   * The repository address comes from the manifest's own homepage_url rather
+   * than a second copy of it here, so this button opens exactly what the store
+   * listing links to and there is nothing to drift. If the key is ever removed
+   * the button removes itself, instead of opening undefined.
+   */
+  const repoUrl = chrome.runtime.getManifest().homepage_url;
+
+  if (repoUrl) {
+    el('repoBtn').addEventListener('click', () => {
+      void chrome.tabs.create({ url: repoUrl });
+    });
+  } else {
+    el('repoBtn').hidden = true;
+  }
+
   el('supportBtn').addEventListener('click', () => {
     const panel = el('supportPanel');
     const opening = panel.hidden;
