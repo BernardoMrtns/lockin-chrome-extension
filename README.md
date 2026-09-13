@@ -132,9 +132,26 @@ npm run check   # pre-publish checks
 npm run icons   # regenerates icons/icon-{16,48,128}.png
 npm run icons -- sheet   # also writes dist/icon-candidates.png to compare marks
 npm run qr      # regenerates src/ui/qr-codes.js from the addresses
+npm run release -- patch # bumps, verifies, packages, commits and tags
 npm run serve   # static server for the preview harness
 npm run zip     # runs the checks, then writes dist/lock-in-<version>.zip
 ```
+
+### Releasing
+
+```bash
+npm run release -- patch   # or minor, major, or an explicit 1.2.0
+```
+
+It bumps `manifest.json` and `package.json` together, runs the tests and the
+checks, builds the zip, then commits and tags. If anything fails the version
+files go back to their committed state — a half-applied release is worse than
+none — and it refuses to run on a dirty tree, so the release commit is only
+the bump.
+
+The version has to beat the last one, and the store rejects a package that
+does not beat what is already published. The comparison is component-wise and
+numeric, because 1.0.10 beats 1.0.9 and string comparison says otherwise.
 
 `npm run check` looks for what store review usually rejects: permissions that
 are declared but never used, `host_permissions`, `web_accessible_resources`,

@@ -337,6 +337,21 @@ for (const referenced of [
 }
 
 /*
+ * The version lives in two files and only one of them is the one the store
+ * reads. Bumping the manifest and forgetting package.json produces a zip named
+ * after the old version, which is the kind of thing noticed after uploading.
+ */
+const packageVersion = json['package.json']?.version;
+
+if (manifest.version !== packageVersion) {
+  fail(`manifest.json is version ${manifest.version} but package.json is ${packageVersion}`);
+}
+
+if (!/^\d+(\.\d+){1,3}$/.test(manifest.version || '')) {
+  fail(`manifest version "${manifest.version}" is not the dotted-integer form Chrome accepts`);
+}
+
+/*
  * The store listing links back to the repository, and the privacy policy the
  * dashboard points at is a file in it. Both are entered once in a web form and
  * then never looked at again, so a rename here would break them silently.

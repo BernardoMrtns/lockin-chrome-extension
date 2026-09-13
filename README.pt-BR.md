@@ -132,6 +132,7 @@ npm run check   # checks de pré-publicação
 npm run icons   # regenera icons/icon-{16,48,128}.png
 npm run icons -- sheet   # também gera dist/icon-candidates.png para comparar
 npm run qr      # regenera src/ui/qr-codes.js a partir dos endereços
+npm run release -- patch # sobe a versão, verifica, empacota, commita e taggeia
 npm run serve   # servidor estático para o harness de prévia
 npm run zip     # roda os checks e gera dist/lock-in-<versão>.zip
 ```
@@ -140,6 +141,22 @@ npm run zip     # roda os checks e gera dist/lock-in-<versão>.zip
 declaradas e não usadas, `host_permissions`, `web_accessible_resources`,
 referências remotas, arquivos apontados pelo manifest que não existem, e as
 localidades divergindo entre si, do código ou da lista de bandeiras.
+
+### Publicando uma versão
+
+```bash
+npm run release -- patch   # ou minor, major, ou um 1.2.0 explícito
+```
+
+Sobe a versão no `manifest.json` e no `package.json` juntos, roda os testes e
+os checks, monta o zip, e então commita e cria a tag. Se qualquer coisa falhar,
+os arquivos de versão voltam ao estado commitado — um release pela metade é
+pior que nenhum — e ele se recusa a rodar com a árvore suja, para o commit de
+release ser só o bump.
+
+A versão precisa ser maior que a anterior, e a store recusa um pacote que não
+supere o que já está publicado. A comparação é campo a campo e numérica,
+porque 1.0.10 é maior que 1.0.9 e comparação de texto diz o contrário.
 
 ### Prévia da interface
 
