@@ -24,13 +24,13 @@
     "message": "what stays out"
   },
   "popupSitesPlaceholder": {
-    "message": "instagram.com"
+    "message": "youtube.com/shorts"
   },
   "popupAdd": {
     "message": "add"
   },
   "popupSitesHint": {
-    "message": "a domain or a word. \"reddit\" catches old.reddit.com too."
+    "message": "a domain, a path, or a word. \"youtube.com/shorts\" leaves the lectures open."
   },
   "popupSitesEmpty": {
     "message": "empty list. no list, no lock."
@@ -46,6 +46,9 @@
   },
   "popupSiteDuplicate": {
     "message": "$1 is already on the list."
+  },
+  "popupSiteCovered": {
+    "message": "$1 already blocks the whole site, so this rule adds nothing."
   },
   "popupPresetNothingNew": {
     "message": "all of those are already on the list."

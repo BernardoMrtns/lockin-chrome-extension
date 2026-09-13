@@ -63,10 +63,21 @@ navigation starts before the redirect.
 
 Site matching:
 
-| You type | It catches |
-| --- | --- |
-| `reddit.com` | `reddit.com`, `www.reddit.com`, `old.reddit.com` |
-| `reddit` | any URL containing "reddit", including a search for reddit |
+| You type | It catches | It leaves alone |
+| --- | --- | --- |
+| `reddit.com` | `reddit.com`, `www.reddit.com`, `old.reddit.com` | `notreddit.com` |
+| `youtube.com/shorts` | `/shorts`, `/shorts/abc`, `m.youtube.com/shorts` | `/watch?v=…`, `/shortstories` |
+| `reddit` | any URL containing "reddit", including a search for reddit | — |
+
+A path is a prefix that has to end on a segment boundary, which is how
+`youtube.com/shorts` takes the shorts feed away and leaves the lectures
+reachable. Query strings and fragments are dropped when the rule is saved —
+they vary per visit, so they could never match.
+
+When two rules both match, the more specific one is the one counted: a list
+holding `youtube.com` and `youtube.com/shorts` tallies a short against the
+shorts rule. A rule another one already covers is struck through in the popup,
+since it has nothing left to block.
 
 Schemes other than `http`/`https` are never blocked, so `chrome://extensions`
 and the block page itself stay reachable.

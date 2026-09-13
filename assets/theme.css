@@ -280,6 +280,19 @@ body {
   white-space: nowrap;
 }
 
+/*
+ * A rule another entry already covers. Struck through rather than hidden: it is
+ * still on the list and still removable, it just has nothing left to block.
+ */
+.tag[data-covered='true'] {
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.tag[data-covered='true'] .tag__label {
+  text-decoration: line-through;
+}
+
 .tag__remove {
   display: grid;
   place-items: center;

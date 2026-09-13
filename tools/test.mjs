@@ -139,7 +139,7 @@ function assertNear(actual, expected, toleranceMs, label) {
 
 /* ── modules under test ── */
 
-const { canonicalizeSite, findBlockedMatch, normalizeSites } =
+const { canonicalizeSite, findBlockedMatch, findCoveringRule, normalizeSites } =
   await import('../src/core/blocking.js');
 const {
   clearCounters,
@@ -168,11 +168,22 @@ const MIN = 60000;
 
 console.log('\nblocking');
 
-await test('canonicalizeSite strips scheme, path, port, www and trailing dots', () => {
-  assert(canonicalizeSite('https://www.X.com/home?a=1') === 'x.com', 'url form');
+await test('canonicalizeSite strips scheme, query, port, www and trailing dots', () => {
+  assert(canonicalizeSite('https://www.X.com/?a=1') === 'x.com', 'url form');
   assert(canonicalizeSite('  Instagram.COM.  ') === 'instagram.com', 'case and dots');
   assert(canonicalizeSite('example.com:8080') === 'example.com', 'port');
   assert(canonicalizeSite('') === '', 'empty');
+  assert(canonicalizeSite('/shorts') === '', 'a path with no host is not a rule');
+});
+
+await test('canonicalizeSite keeps the path, and only the path', () => {
+  assert(
+    canonicalizeSite('https://www.YouTube.com/Shorts/?a=1#top') === 'youtube.com/shorts',
+    canonicalizeSite('https://www.YouTube.com/Shorts/?a=1#top')
+  );
+  assert(canonicalizeSite('youtube.com//shorts//') === 'youtube.com/shorts', 'stray slashes');
+  assert(canonicalizeSite('youtube.com/') === 'youtube.com', 'a bare slash is not a path');
+  assert(canonicalizeSite('reddit.com/r/all') === 'reddit.com/r/all', 'deeper paths survive');
 });
 
 await test('normalizeSites dedupes forms that resolve to one host', () => {
@@ -186,6 +197,44 @@ await test('findBlockedMatch covers host, subdomain and www', () => {
   assert(findBlockedMatch('https://old.reddit.com/', sites) === 'reddit.com', 'subdomain');
   assert(findBlockedMatch('https://www.reddit.com/', sites) === 'reddit.com', 'www');
   assert(findBlockedMatch('https://notreddit.com/', sites) === '', 'suffix must not match');
+});
+
+// The point of the feature: shut the shorts feed, keep the lectures.
+await test('a path rule blocks that corner of the site and nothing else', () => {
+  const sites = ['youtube.com/shorts'];
+
+  assert(findBlockedMatch('https://www.youtube.com/shorts/abc', sites) === 'youtube.com/shorts', 'a short');
+  assert(findBlockedMatch('https://youtube.com/shorts', sites) === 'youtube.com/shorts', 'the feed itself');
+  assert(findBlockedMatch('https://m.youtube.com/shorts/abc', sites) === 'youtube.com/shorts', 'subdomain');
+  assert(findBlockedMatch('https://youtube.com/watch?v=abc', sites) === '', 'a lecture stays open');
+  assert(findBlockedMatch('https://youtube.com/', sites) === '', 'the home page stays open');
+  assert(findBlockedMatch('https://youtube.com/shortstories', sites) === '', 'prefix must end on a segment');
+  assert(findBlockedMatch('https://vimeo.com/shorts/abc', sites) === '', 'another host entirely');
+});
+
+await test('when rules overlap, the most specific one is the one tallied', () => {
+  const sites = ['youtube.com', 'youtube.com/shorts'];
+
+  assert(findBlockedMatch('https://youtube.com/shorts/abc', sites) === 'youtube.com/shorts', 'the narrow rule');
+  assert(findBlockedMatch('https://youtube.com/watch?v=abc', sites) === 'youtube.com', 'the broad rule');
+});
+
+await test('findCoveringRule names the rule that makes a path rule pointless', () => {
+  assert(
+    findCoveringRule('youtube.com/shorts', ['youtube.com', 'youtube.com/shorts']) === 'youtube.com',
+    'the whole host covers a path under it'
+  );
+  assert(
+    findCoveringRule('youtube.com/shorts/x', ['youtube.com/shorts']) === 'youtube.com/shorts',
+    'a shorter path covers a longer one'
+  );
+  assert(
+    findCoveringRule('youtube.com/shorts', ['youtube']) === 'youtube',
+    'a keyword covers it too'
+  );
+  assert(findCoveringRule('youtube.com/shorts', ['youtube.com/shorts']) === '', 'itself is not cover');
+  assert(findCoveringRule('youtube.com/watch', ['youtube.com/shorts']) === '', 'siblings do not cover');
+  assert(findCoveringRule('youtube.com', ['youtube.com/shorts']) === '', 'a path never covers the host');
 });
 
 await test('bare keywords match anywhere, domains do not over-match', () => {
@@ -207,13 +256,13 @@ await test('non-http schemes are never blocked', () => {
 console.log('\nsession accounting');
 
 await test('startFocus arms the alarm and normalizes the site list', async () => {
-  await startFocus(25, ['https://www.X.com/feed', 'x.com', 'reddit.com']);
+  await startFocus(25, ['https://www.X.com/', 'x.com', 'reddit.com/r/all']);
 
   assert(store[STORAGE_KEYS.IS_FOCUS] === true, 'should be focusing');
   assertNear(store[STORAGE_KEYS.END_TS], clock + 25 * MIN, 50, 'endTs');
   assert(alarms.focusEnd, 'alarm armed');
   assert(
-    JSON.stringify(store[STORAGE_KEYS.SITES]) === JSON.stringify(['x.com', 'reddit.com']),
+    JSON.stringify(store[STORAGE_KEYS.SITES]) === JSON.stringify(['x.com', 'reddit.com/r/all']),
     `sites: ${JSON.stringify(store[STORAGE_KEYS.SITES])}`
   );
 });

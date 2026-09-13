@@ -63,10 +63,21 @@ navegação começa antes do redirecionamento.
 
 Correspondência de sites:
 
-| Você digita | Pega |
-| --- | --- |
-| `reddit.com` | `reddit.com`, `www.reddit.com`, `old.reddit.com` |
-| `reddit` | qualquer URL que contenha "reddit", inclusive uma busca por reddit |
+| Você digita | Pega | Deixa passar |
+| --- | --- | --- |
+| `reddit.com` | `reddit.com`, `www.reddit.com`, `old.reddit.com` | `notreddit.com` |
+| `youtube.com/shorts` | `/shorts`, `/shorts/abc`, `m.youtube.com/shorts` | `/watch?v=…`, `/shortstories` |
+| `reddit` | qualquer URL que contenha "reddit", inclusive uma busca por reddit | — |
+
+O caminho é um prefixo que precisa terminar no fim de um segmento, e é assim que
+`youtube.com/shorts` tira o feed de shorts e deixa as aulas acessíveis. Query
+string e fragmento são descartados ao salvar a regra — mudam a cada visita,
+então nunca casariam.
+
+Quando duas regras casam, a mais específica é a contabilizada: uma lista com
+`youtube.com` e `youtube.com/shorts` credita um short à regra de shorts. Uma
+regra que outra já cobre aparece riscada no popup, já que não sobrou nada para
+ela bloquear.
 
 Esquemas que não são `http`/`https` nunca são bloqueados, então
 `chrome://extensions` e a própria página de bloqueio continuam acessíveis.

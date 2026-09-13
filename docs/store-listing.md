@@ -111,6 +111,8 @@ Lock In collects no data at all. Anything the user enters stays in
 > worked or reached for the same tab nine times in forty minutes.
 >
 > — Set a timer from five minutes to a few hours, pause it, or stop early
+> — Block a whole site, or just the part that gets you: youtube.com/shorts
+> stays shut while the lectures stay open
 > — Every blocked attempt is counted per site, and the block page tells you the
 > number to your face
 > — A summary screen with your sessions, your daily totals, and where the
@@ -134,6 +136,8 @@ Lock In collects no data at all. Anything the user enters stays in
 > foi na mesma aba nove vezes em quarenta minutos.
 >
 > — Timer de cinco minutos a algumas horas, com pausar e encerrar antes
+> — Bloqueie o site inteiro, ou só a parte que te pega: youtube.com/shorts
+> fica fechado e as aulas continuam abertas
 > — Cada tentativa bloqueada é contada por site, e a página de bloqueio te
 > mostra o número na cara
 > — Uma tela de resumo com suas sessões, seus totais por dia e para onde o
@@ -156,6 +160,8 @@ Lock In collects no data at all. Anything the user enters stays in
 > si fuiste a la misma pestaña nueve veces en cuarenta minutos.
 >
 > — Temporizador de cinco minutos a varias horas, con pausa y parada anticipada
+> — Bloquea el sitio entero, o solo la parte que te atrapa: youtube.com/shorts
+> queda cerrado y las clases siguen abiertas
 > — Cada intento bloqueado se cuenta por sitio, y la página de bloqueo te dice
 > el número a la cara
 > — Una pantalla de resumen con tus sesiones, tus totales diarios y hacia dónde

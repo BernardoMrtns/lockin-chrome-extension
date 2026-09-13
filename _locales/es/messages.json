@@ -24,13 +24,13 @@
     "message": "qué se queda fuera"
   },
   "popupSitesPlaceholder": {
-    "message": "instagram.com"
+    "message": "youtube.com/shorts"
   },
   "popupAdd": {
     "message": "añadir"
   },
   "popupSitesHint": {
-    "message": "un dominio o una palabra. \"reddit\" también atrapa old.reddit.com."
+    "message": "un dominio, una ruta o una palabra. \"youtube.com/shorts\" deja pasar las clases."
   },
   "popupSitesEmpty": {
     "message": "lista vacía. sin lista, no hay candado."
@@ -46,6 +46,9 @@
   },
   "popupSiteDuplicate": {
     "message": "$1 ya está en la lista."
+  },
+  "popupSiteCovered": {
+    "message": "$1 ya bloquea el sitio entero, así que esta regla no cambia nada."
   },
   "popupPresetNothingNew": {
     "message": "ya está todo en la lista."

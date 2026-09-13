@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from './src/utils/storage.js';
-import { canonicalizeSite, normalizeSites } from './src/core/blocking.js';
+import { canonicalizeSite, findCoveringRule, normalizeSites } from './src/core/blocking.js';
 import {
   applyStaticText,
   formatClock,
@@ -54,6 +54,18 @@ function renderSites() {
     const label = document.createElement('span');
     label.className = 'tag__label';
     label.textContent = site;
+
+    /*
+     * A path rule sitting under a broader one does nothing. Say so on the chip
+     * itself rather than in a toast at the moment it was added: the list can be
+     * shadowed later, by a preset or by another entry, and the chip stays right.
+     */
+    const covering = findCoveringRule(site, draftSites);
+
+    if (covering) {
+      item.dataset.covered = 'true';
+      label.title = t('popupSiteCovered', covering);
+    }
 
     const remove = document.createElement('button');
     remove.type = 'button';
