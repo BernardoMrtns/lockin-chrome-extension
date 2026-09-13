@@ -1,15 +1,27 @@
 /**
- * Shared test harness for tools/preview.html and tools/make-shots.html.
- * Not shipped (tools/ is excluded from the zip).
+ * Shared test harness for the pages under tools/ that render the real UI:
+ * preview.html, make-shots.html and make-tiles.html. Not shipped (tools/ is
+ * excluded from the zip).
  *
  * Stubs the chrome.* APIs the UI touches, seeds a scenario into fake storage,
- * then loads the real page markup and the real module — so both the preview and
- * the store screenshots show the actual production code, not a mockup, and the
- * two can never drift apart.
+ * then loads the real page markup and the real module — so the preview, the
+ * store screenshots and the promo tiles all show the actual production code,
+ * not a mockup, and none of them can drift from the others.
  */
 
 const ROOT = '../';
 
+/*
+ * The clock the scenarios are seeded from, and deliberately a live one.
+ *
+ * It means a composed screenshot is not byte-reproducible: the session history
+ * is dated relative to this and the running timer counts down from it, so the
+ * same shot rasterised a minute later differs. Seeding from a fixed instant
+ * instead would be worse — the page code calls the real Date.now(), so a
+ * frozen past `endTs` renders the session as already expired. Making the
+ * images reproducible means faking Date itself in the generator pages, which
+ * is not worth it to compare hashes.
+ */
 const now = Date.now();
 
 export const SCENARIOS = {
@@ -38,6 +50,18 @@ export const SCENARIOS = {
     lastUsedTime: 25
   }
 };
+
+/*
+ * The real manifest, loaded lazily. The stub is installed synchronously but
+ * the pages only read it after mountPage has awaited this, so the preview sees
+ * the same homepage_url and version the extension does instead of a copy that
+ * can go stale.
+ */
+const manifest = {};
+
+async function loadManifest() {
+  Object.assign(manifest, await fetch(`${ROOT}manifest.json`).then(r => r.json()));
+}
 
 const BLOCKED_PARAMS = {
   first: { site: 'instagram.com', n: '1', today: '1' },
@@ -134,6 +158,9 @@ export function installChromeStub({ page, scenario, locale } = {}) {
     },
     runtime: {
       getURL: path => ROOT + path,
+      // Filled from the real manifest.json before the page module is imported,
+      // so the preview reads the same values the extension does.
+      getManifest: () => manifest,
       sendMessage: async message => {
         if (message.action === 'getStatus') {
           return {
@@ -219,13 +246,19 @@ export async function mountPage({ page, scenario, target = document.body }) {
   );
 
   if (page === 'blocked') {
-    // blocked.js reads its tally from the query string, so rewrite it first.
+    /*
+     * blocked.js reads its tally from the query string, so rewrite it first —
+     * and note that this replaces the whole thing, discarding whatever the
+     * calling page was passed. Anything a caller needs from its own URL has to
+     * be read before mountPage, not after.
+     */
     const params = new URLSearchParams(BLOCKED_PARAMS[scenario] || BLOCKED_PARAMS.repeat);
     history.replaceState(null, '', `?${params}`);
   }
 
   // Let the stylesheets settle before the module measures anything.
   await new Promise(resolve => setTimeout(resolve, 60));
+  await loadManifest();
   await import(`${ROOT}${page}.js${bust}`);
 
   // And let the module's own async boot (i18n fetch, first render) finish.

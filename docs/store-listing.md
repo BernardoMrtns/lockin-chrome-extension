@@ -7,15 +7,54 @@ and `_locales/`, so it localizes them on its own.
 Before submitting, the two URLs below have to resolve — they point at `main`,
 so `rewrite-v1` must be merged first.
 
+Two things live outside this page and block publishing on their own, in the
+dashboard's **Settings**, not on the item: a publisher contact email, and
+clicking through the verification link it sends. Neither appears on the item
+form, so the item can look complete and still refuse to publish.
+
+### Product details
+
 | Field | Value |
 | --- | --- |
+| Package title | comes from `_locales`; leave it |
+| Package summary | comes from `_locales`; leave it |
+| Description | the detailed description below |
 | Category | Productivity |
-| Language | English (add Portuguese (Brazil) and Spanish as extra listings) |
-| Homepage URL | comes from `homepage_url` in the manifest |
+| Editing language | English (en) is the default; add Portuguese (Brazil) and Spanish as extra listings for their descriptions) |
+
+### Graphics
+
+| Field | File |
+| --- | --- |
+| Store icon, 128x128 | `icons/icon-128.png` — already the right size, fills the canvas, corners transparent |
+| Screenshots, 1280x800 | `store/lock-in-idle.png`, `-running.png`, `-blocked.png`, `-summary.png`, in that order |
+| Small promo tile, 440x280 | `store/lock-in-tile-small.png` |
+| Marquee promo tile, 1400x560 | `store/lock-in-tile-marquee.png` |
+| Promo video | none |
+
+Upload the screenshots under **localized** assets, in the current editing
+language. That is the slot the dashboard requires; the global one can stay
+empty, and is meant for images with no text in them.
+
+The screenshots do have text — the interface in them is English — so the
+English listing is where they belong. Adding a Portuguese or Spanish listing
+later means giving each one its own screenshots: either these same four, or
+translated ones, which the pipeline can produce because the harness takes
+`&locale=pt_BR` and `&locale=es`.
+
+The two promo tiles are optional — they are what Google uses if it ever
+features the extension. There is no downside to having them.
+
+### Extra fields
+
+| Field | Value |
+| --- | --- |
+| Official URL | none — that field only accepts a domain verified in Google Search Console |
+| Homepage URL | `https://github.com/BernardoMrtns/lockin-chrome-extension` |
 | Support URL | `https://github.com/BernardoMrtns/lockin-chrome-extension/issues` |
-| Privacy policy URL | `https://github.com/BernardoMrtns/lockin-chrome-extension/blob/main/PRIVACY.md` |
 | Mature content | No |
-| Screenshots | `store/lock-in-idle.png`, `-running.png`, `-blocked.png`, `-summary.png`, in that order |
+| Item support | on — the support URL goes to the issue tracker, which is the right place for it |
+| Privacy policy URL (Privacy tab) | `https://github.com/BernardoMrtns/lockin-chrome-extension/blob/main/PRIVACY.md` |
 
 ## Single purpose
 
@@ -45,10 +84,13 @@ Keep it to one sentence. Reviewers reject a "single purpose" that lists two.
 > No. The extension executes no remote code. Every script, style, font, and
 > image is bundled in the package, and it makes no network requests.
 
-`alarms` needs no justification form, but if asked:
+**alarms**
 
-> Ends the focus session at the scheduled time even when the service worker has
-> been unloaded by the browser in the meantime.
+> Ends the focus session at the scheduled time even when the browser has
+> unloaded the extension's service worker in the meantime. Without it a session
+> would keep running past its end whenever Chrome suspended the worker.
+
+Every declared permission gets its own required field — `alarms` included.
 
 ## Data usage
 

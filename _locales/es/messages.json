@@ -75,7 +75,11 @@
     "message": "bloqueados en esta sesión"
   },
   "popupSummary": {
-    "message": "ver los números"
+    "message": "los números"
+  },
+  "popupRepo": {
+    "message": "Código fuente",
+    "description": "Tooltip and accessible name for the icon button that opens the source repository."
   },
   "popupHeroClean": {
     "message": "ningún desvío todavía. impresionante."

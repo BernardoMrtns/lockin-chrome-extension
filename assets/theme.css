@@ -135,10 +135,6 @@ body {
   box-shadow: var(--shadow);
 }
 
-.panel--flat {
-  box-shadow: none;
-}
-
 .panel--accent {
   background: var(--lime);
   color: var(--on-lime);
@@ -436,6 +432,17 @@ body {
   fill: var(--paper-raised);
 }
 
+/*
+ * The GitHub mark, flat and monochrome like the cup and the flags. It inherits
+ * the button's colour so the hover state carries it along.
+ */
+.glyph-mark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: currentColor;
+}
+
 /* ---------- support panel ---------- */
 
 .support {
@@ -534,6 +541,17 @@ body {
   font-size: 11px;
 }
 
+/*
+ * Icon-only, and square: same height as .btn--sm beside it, with the padding
+ * dropped so the box is not a lopsided rectangle. Its name comes from
+ * data-i18n-label, since there is no text to read.
+ */
+.btn--icon {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
 .btn--sm[data-done='true'] {
   background: var(--lime);
   color: var(--on-lime);
@@ -563,17 +581,6 @@ body {
 
 .dot[data-state='off'] {
   background: transparent;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

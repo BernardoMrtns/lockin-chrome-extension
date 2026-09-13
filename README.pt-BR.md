@@ -154,6 +154,27 @@ query string não alcança os imports dentro de um módulo ES.
 Adicione `&locale=pt_BR` ou `&locale=es` para abrir já numa tradução. O tile de
 bandeiras funciona no harness, então dá para trocar de idioma ali mesmo.
 
+### Imagens da store
+
+As capturas e os blocos promocionais são compostos pelo mesmo harness, então
+não têm como divergir da interface — nada neles é desenhado à mão. Sirva a
+raiz e abra, acrescentando `&save=1` para gravar o arquivo em `store/`:
+
+- `tools/make-shots.html?shot=idle` — também `running`, `blocked`, `summary`
+- `tools/make-tiles.html?tile=small` — também `marquee`
+
+Os dois rasterizam por `tools/raster.js`, que codifica um PNG de tipo de cor 2
+na mão, porque a store quer 24 bits sem alfa e `canvas.toDataURL` sempre emite
+RGBA.
+
+Não são reproduzíveis byte a byte: o harness semeia os cenários com o relógio
+real, então o timer em contagem e as datas do histórico mudam a cada geração.
+Semear de um instante fixo seria pior, porque o código da página chama o
+`Date.now()` de verdade e renderizaria a sessão como já expirada.
+
+`docs/store-listing.md` tem todos os campos que o painel pede, e `PRIVACY.md`
+é a política que a listagem linka.
+
 ## Doações
 
 O rodapé do popup tem um botão `apoiar` e a página de resumo um card, os dois
