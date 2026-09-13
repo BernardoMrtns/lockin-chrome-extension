@@ -44,13 +44,13 @@ body {
 }
 
 /*
- * Pushed to the far edge rather than left tight against the donate button: the
- * footer is 344px wide and the two labelled controls do not fill it, so a
- * third button parked mid-row leaves a gap that reads as a mistake. At the
- * edge it anchors the row instead.
+ * The donate button takes the slack, so the row ends flush on both edges with
+ * the icon button sitting right beside it. Parking the icon at the far edge
+ * instead left a visible gap between the two, which read as the icon having
+ * drifted off on its own rather than belonging to the pair.
  */
-.bar__links .btn--icon {
-  margin-left: auto;
+.bar__links .btn--donate {
+  flex: 1;
 }
 
 /*
