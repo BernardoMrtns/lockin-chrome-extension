@@ -9,6 +9,7 @@
     "test": "node tools/test.mjs",
     "icons": "node tools/make-icons.mjs",
     "qr": "node tools/make-qr.mjs",
+    "release": "node tools/release.mjs",
     "serve": "node tools/serve.mjs",
     "zip": "node tools/zip.mjs"
   }
