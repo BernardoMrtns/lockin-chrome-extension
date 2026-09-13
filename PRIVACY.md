@@ -53,6 +53,6 @@ policy applies.
 ## Contact
 
 Open an issue at
-<https://github.com/BernardoMrtns/lockin-chrome-extension/issues>.
+<https://github.com/bernardomcma/lockin-chrome-extension/issues>.
 
 _Last updated: 9 September 2026._

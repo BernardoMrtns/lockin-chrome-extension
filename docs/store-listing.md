@@ -50,11 +50,11 @@ features the extension. There is no downside to having them.
 | Field | Value |
 | --- | --- |
 | Official URL | none — that field only accepts a domain verified in Google Search Console |
-| Homepage URL | `https://github.com/BernardoMrtns/lockin-chrome-extension` |
-| Support URL | `https://github.com/BernardoMrtns/lockin-chrome-extension/issues` |
+| Homepage URL | `https://github.com/bernardomcma/lockin-chrome-extension` |
+| Support URL | `https://github.com/bernardomcma/lockin-chrome-extension/issues` |
 | Mature content | No |
 | Item support | on — the support URL goes to the issue tracker, which is the right place for it |
-| Privacy policy URL (Privacy tab) | `https://github.com/BernardoMrtns/lockin-chrome-extension/blob/main/PRIVACY.md` |
+| Privacy policy URL (Privacy tab) | `https://github.com/bernardomcma/lockin-chrome-extension/blob/main/PRIVACY.md` |
 
 ## Single purpose
 

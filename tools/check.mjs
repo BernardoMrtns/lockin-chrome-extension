@@ -341,7 +341,7 @@ for (const referenced of [
  * dashboard points at is a file in it. Both are entered once in a web form and
  * then never looked at again, so a rename here would break them silently.
  */
-const REPO_URL = 'https://github.com/BernardoMrtns/lockin-chrome-extension';
+const REPO_URL = 'https://github.com/bernardomcma/lockin-chrome-extension';
 
 if (manifest.homepage_url !== REPO_URL) {
   fail(`manifest homepage_url is "${manifest.homepage_url}", expected ${REPO_URL}`);
