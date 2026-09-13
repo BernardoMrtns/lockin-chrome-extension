@@ -153,6 +153,9 @@ The version has to beat the last one, and the store rejects a package that
 does not beat what is already published. The comparison is component-wise and
 numeric, because 1.0.10 beats 1.0.9 and string comparison says otherwise.
 
+Every command, grouped by what you are trying to do, is in
+[docs/commands.md](docs/commands.md).
+
 `npm run check` looks for what store review usually rejects: permissions that
 are declared but never used, `host_permissions`, `web_accessible_resources`,
 remote references, manifest entries pointing at files that do not exist, and

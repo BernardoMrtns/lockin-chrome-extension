@@ -137,6 +137,9 @@ npm run serve   # servidor estático para o harness de prévia
 npm run zip     # roda os checks e gera dist/lock-in-<versão>.zip
 ```
 
+Todos os comandos, agrupados pelo que você está tentando fazer, estão em
+[docs/commands.md](docs/commands.md).
+
 `npm run check` verifica o que a revisão da store costuma reprovar: permissões
 declaradas e não usadas, `host_permissions`, `web_accessible_resources`,
 referências remotas, arquivos apontados pelo manifest que não existem, e as
