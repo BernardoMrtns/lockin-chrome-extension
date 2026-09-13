@@ -155,6 +155,27 @@ query string cannot reach the imports inside an ES module.
 Append `&locale=pt_BR` or `&locale=es` to open straight into a translation. The
 flag tile works in the harness, so you can switch languages there too.
 
+### Store assets
+
+The screenshots and promo tiles are composed from the same harness, so they
+cannot drift from the interface — nothing in them is drawn by hand. Serve the
+root, then open, adding `&save=1` to write the file into `store/`:
+
+- `tools/make-shots.html?shot=idle` — also `running`, `blocked`, `summary`
+- `tools/make-tiles.html?tile=small` — also `marquee`
+
+Both rasterise through `tools/raster.js`, which encodes a colour-type-2 PNG by
+hand because the store wants 24-bit with no alpha and `canvas.toDataURL` always
+emits RGBA.
+
+They are not byte-reproducible: the harness seeds its scenarios from the live
+clock, so the running timer and the session dates differ between runs. Seeding
+from a fixed instant would be worse, because the page code calls the real
+`Date.now()` and would render the session as already expired.
+
+`docs/store-listing.md` holds every field the dashboard asks for, and
+`PRIVACY.md` is the policy the listing links to.
+
 ## Donations
 
 The popup footer has a `support` toggle and the summary page a card, both

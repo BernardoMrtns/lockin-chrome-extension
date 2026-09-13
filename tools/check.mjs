@@ -583,6 +583,31 @@ const totalBytes = files.reduce((sum, file) => sum + statSync(join(root, file)).
 note(`shipped payload: ${(totalBytes / 1024).toFixed(1)} KB across ${files.length} files`);
 note(`locales: ${localeDirs.join(', ')} · ${baseKeys.size} keys each · ${usedKeys.size} used in code`);
 
+/*
+ * Class selectors nothing refers to any more. A note rather than a failure:
+ * this is housekeeping, and a class built by concatenation would be a false
+ * positive worth seeing but not worth blocking on.
+ */
+const definedClasses = new Map();
+
+for (const file of cssFiles) {
+  // url('fonts/x.woff2') would otherwise register ".woff2" as a class.
+  const source = stripComments(read(file)).replace(/url\([^)]*\)/g, '');
+
+  for (const match of source.matchAll(/\.(-?[A-Za-z_][A-Za-z0-9_-]*)/g)) {
+    if (!definedClasses.has(match[1])) definedClasses.set(match[1], file);
+  }
+}
+
+const markup = [...htmlFiles, ...jsFiles].map(file => read(file)).join('\n');
+const orphanClasses = [...definedClasses]
+  .filter(([name]) => !new RegExp(`\\b${name.replace(/-/g, '\\-')}\\b`).test(markup))
+  .map(([name, file]) => `.${name} (${file})`);
+
+if (orphanClasses.length) {
+  note(`css classes nothing uses: ${orphanClasses.join(', ')}`);
+}
+
 const unused = [...baseKeys].filter(key => !usedKeys.has(key) && !key.startsWith('ext'));
 
 if (unused.length) {
